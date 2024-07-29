@@ -23,7 +23,7 @@ OBJ_DIR			:=	objs
 OBJS			:=	$(SRC:%.c=$(OBJ_DIR)/%.o)
 
 RM				:=	rm -rf
-INCLUDE			:=	-Ilibari -Iinclude
+INCLUDE			:=	-Ilibari -Iincludes
 
 LIB_PATH		:=	$(PWD)/libari
 LIB_DIR			:=	-ljson-c 
@@ -51,7 +51,7 @@ fclean:				clean
 re:					fclean
 					@$(MAKE) all
 
-CFLAGS				+= -fsanitize=address
+CFLAGS				+= -g3 # -fsanitize=address
 
 test: $(NAME)
 	clear && ./$(NAME)
