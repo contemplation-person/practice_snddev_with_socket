@@ -1,42 +1,47 @@
 #include "libari.h"
 
-# define COLOR_RED_CODE 1
-# define COLOR_GREEN_CODE 2
-# define COLOR_YELLOW_CODE 3
-# define COLOR_BLUE_CODE 4
-# define COLOR_MAGENTA_CODE 5
-# define COLOR_CYAN_CODE 6
-# define COLOR_RESET_CODE 7
-
-void ari_title_print(const char *string, const int color_code)
+const char *put_color_string(const int color_code)
 {
-    char *color_string;
-
     switch (color_code)
     {
         case COLOR_RED_CODE:
-            color_string = ASCII_COLOR_RED;
-            break;
+            return ASCII_COLOR_RED;
         case COLOR_GREEN_CODE:
-            color_string = ASCII_COLOR_GREEN;
-            break;
+            return ASCII_COLOR_GREEN;
         case COLOR_YELLOW_CODE:
-            color_string = ASCII_COLOR_YELLOW;
-            break;
+            return ASCII_COLOR_YELLOW;
         case COLOR_BLUE_CODE:
-            color_string = ASCII_COLOR_BLUE;
-            break;
+            return ASCII_COLOR_BLUE;
         case COLOR_MAGENTA_CODE:
-            color_string = ASCII_COLOR_MAGENTA;
-            break;
+            return ASCII_COLOR_MAGENTA;
         case COLOR_CYAN_CODE:
-            color_string = ASCII_COLOR_CYAN;
-            break;
-        case COLOR_RESET_CODE:
-            color_string = ASCII_COLOR_RESET;
+            return ASCII_COLOR_CYAN;
+        default:
+            return ASCII_COLOR_RESET;
     }
+}
+
+void ari_title_print(const char *string, const int color_code)
+{
+    const char *color_string = put_color_string(color_code);
     
     ari_putendl_fd(color_string, 1);
     ari_putstr_fd(string, 1);
     ari_putendl_fd(ASCII_COLOR_RESET, 1);
+}
+
+void ari_title_print_fd(const int fd, const char *string, const int color_code)
+{
+    const char *color_string = put_color_string(color_code);
+    
+    ari_putendl_fd(color_string, fd);
+    ari_putstr_fd(string, fd);
+    ari_putendl_fd(ASCII_COLOR_RESET, fd);
+}
+
+void    ari_print_error(const char *string, const char *file, const int line)
+{
+    fprintf(stderr, "%s%s - %s:%d%s\n", \
+            ASCII_COLOR_RED, string, file, line, ASCII_COLOR_RESET);
+    
 }

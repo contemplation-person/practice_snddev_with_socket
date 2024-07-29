@@ -26,7 +26,7 @@
 //======================get_next_line.src==============
 
 # ifndef BUFFER_SIZE
-#  define BUFFER_SIZE 100
+#  define BUFFER_SIZE 2048
 # endif
 
 typedef enum e_success
@@ -59,9 +59,11 @@ void		set_fd_list(t_g_list **fd_lst, t_g_list *prev, int fd);
 
 
 // main proto
-char		*ari_get_next_line(int fd);
-size_t      ari_putstr_fd(const char *s, int fd);
-size_t      ari_putendl_fd(const char *s, int fd);
-void        ari_title_print(const char *string, const int color_code); 
+char    *ari_get_next_line(int fd);
+size_t  ari_putstr_fd(const char *s, int fd);
+size_t  ari_putendl_fd(const char *s, int fd);
+void    ari_title_print(const char *string, const int color_code); 
+void    ari_title_print_fd(const int fd, const char *string, const int color_code);
+void    ari_print_error(const char *string, const char *file, const int line);
 
 #endif
