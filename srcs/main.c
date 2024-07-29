@@ -184,65 +184,74 @@ void send_(t_client *client, int target_fd, fd_set *w_fd_set)
 	}
 }
 
-int main(int argc, char **argv) {
-    int                 sockfd;
-    int                 connfd; 
-    int                 len;
-    int                 port;
-    struct sockaddr_in  servaddr; 
-    struct sockaddr_in  cli; 
-
+void check_argc(int argc) {
     if (argc != 2)
     {
         //ari_title_print_fd(STDERR_FILENO, "ARG ERROR [IP] [PORT]", COLOR_RED_CODE);
         //ari_title_print_fd(STDERR_FILENO, "ex:[2130706433] [4242]", COLOR_RED_CODE);
         ari_title_print_fd(STDERR_FILENO, "ARG ERROR [PORT]", COLOR_RED_CODE);
         ari_title_print_fd(STDERR_FILENO, "ex:[4242]", COLOR_RED_CODE);
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
+}
 
-    port = atoi(argv[1]);
-    sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); 
-    if (sockfd == -1) { 
+void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
+{
+    *sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); 
+    if (*sockfd == -1) { 
         ari_print_error("socket error", __FILE__, __LINE__);
         exit(1); 
     } 
-    bzero(&servaddr, sizeof(servaddr)); 
+    bzero(servaddr, sizeof(*servaddr)); 
 
     // assign IP, PORT 
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = htonl(2130706433); //127.0.0.1
-    servaddr.sin_port = htons(port); 
+    servaddr->sin_family = AF_INET; 
+    servaddr->sin_addr.s_addr = htonl(2130706433); //127.0.0.1
+    servaddr->sin_port = htons(port); 
 
     // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
+    if ((bind(*sockfd, (const struct sockaddr *)servaddr, sizeof(*servaddr))) != 0) { 
         ari_print_error("bind error", __FILE__, __LINE__);
-        close(sockfd);
+        close(*sockfd);
         exit(1); 
     } 
-    if (listen(sockfd, 10) != 0) {
+    if (listen(*sockfd, 10) != 0) {
         ari_print_error("listen error", __FILE__, __LINE__);
-        close(sockfd);
+        close(*sockfd);
         exit(1); 
     }
-    len = sizeof(cli);
+}
 
-    t_client client[CLIENT_NUM];
-    init(client);
-
+int main(int argc, char **argv) {
+    int sockfd;
+    int connfd; 
+    int len;
+    int port;
     int id = 0;
-    int fd_max = sockfd;
+    int fd_max = 0;
     int select_cnt;
+
+    struct sockaddr_in  servaddr; 
+    struct sockaddr_in  cli; 
+    t_client client[CLIENT_NUM];
 
     fd_set w_fd_set;
     fd_set r_fd_set;
     fd_set w_copy_fd_set;
     fd_set r_copy_fd_set;
 
+    port = atoi(argv[1]);
+    len = sizeof(cli);
+
+    check_argc(argc);
+    init_socket(&sockfd, port, &servaddr);
+    init(client);
+
+    fd_max = sockfd;
+
     FD_ZERO(&r_fd_set);
     FD_ZERO(&w_fd_set);
     FD_SET(sockfd, &r_fd_set);
-
 
     while (42)
     {
@@ -253,7 +262,6 @@ int main(int argc, char **argv) {
         {
             if (FD_ISSET(target_fd, &r_copy_fd_set))
             {
-                
                 if (target_fd != sockfd)
                 {
                     // 해당 fd로부터 응답
