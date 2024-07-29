@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -185,17 +186,15 @@ void send_(t_client *client, int target_fd, fd_set *w_fd_set)
 }
 
 void check_argc(int argc) {
-    if (argc != 2)
+    if (argc != 3)
     {
-        //ari_title_print_fd(STDERR_FILENO, "ARG ERROR [IP] [PORT]", COLOR_RED_CODE);
-        //ari_title_print_fd(STDERR_FILENO, "ex:[2130706433] [4242]", COLOR_RED_CODE);
-        ari_title_print_fd(STDERR_FILENO, "ARG ERROR [PORT]", COLOR_RED_CODE);
-        ari_title_print_fd(STDERR_FILENO, "ex:[4242]", COLOR_RED_CODE);
+        ari_title_print_fd(STDERR_FILENO, "ARG ERROR [IP] [PORT]", COLOR_RED_CODE);
+        ari_title_print_fd(STDERR_FILENO, "ex:[2130706433] [4242]", COLOR_RED_CODE);
         exit(EXIT_FAILURE);
     }
 }
 
-void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
+void init_socket(int *sockfd, const char *ip, const int port, struct sockaddr_in *servaddr)
 {
     *sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); 
     if (*sockfd == -1) { 
@@ -206,7 +205,7 @@ void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
 
     // assign IP, PORT 
     servaddr->sin_family = AF_INET; 
-    servaddr->sin_addr.s_addr = htonl(2130706433); //127.0.0.1
+    servaddr->sin_addr.s_addr = inet_addr(ip);
     servaddr->sin_port = htons(port); 
 
     // Binding newly created socket to given IP and verification 
@@ -226,7 +225,6 @@ int main(int argc, char **argv) {
     int sockfd;
     int connfd; 
     int len;
-    int port;
     int id = 0;
     int fd_max = 0;
     int select_cnt;
@@ -240,11 +238,11 @@ int main(int argc, char **argv) {
     fd_set w_copy_fd_set;
     fd_set r_copy_fd_set;
 
-    port = atoi(argv[1]);
+     
     len = sizeof(cli);
 
     check_argc(argc);
-    init_socket(&sockfd, port, &servaddr);
+    init_socket(&sockfd, argv[1], atoi(argv[2]), &servaddr);
     init(client);
 
     fd_max = sockfd;
