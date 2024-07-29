@@ -54,6 +54,7 @@ typedef enum {
 #define DEF_MTYPE_SVR_RES	6
 #define DEF_MTYPE_CLI_INIT  7
 #define DEF_MTYPE_RELOAD_CFG 8
+
 typedef struct _SocketHeader_ {
     int	bodyLen;
     int	mapType;
