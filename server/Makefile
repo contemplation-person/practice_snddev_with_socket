@@ -13,7 +13,7 @@
 CC			  	:=	gcc
 CFLAGS		  	:=	-Wall -Wextra -Werror
 
-NAME			:=	snd
+NAME			:=	snd_server
 
 SRCS_DIR		:=	srcs
 SRC				:=	main.c 
