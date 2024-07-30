@@ -1,4 +1,5 @@
-#include <libari.h>
+#include "libari.h"
+#include "rest_api_message.h"
 
 #include <errno.h>
 #include <string.h>
@@ -9,6 +10,19 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+typedef struct
+{
+	int id;
+	char *rb;
+	char *wb;
+} t_client;
+
+typedef enum
+{
+	CLIENT_NUM = 1024,
+	BUF_LEN = 8193,
+} e_all;
 
 int extract_message(char **buf, char **msg)
 {
@@ -72,19 +86,6 @@ size_t ari_send_fd(int fd, char *msg)
 	return send(fd, msg, strlen(msg), 0);
 }
 
-typedef struct
-{
-	int id;
-	char *rb;
-	char *wb;
-} t_client;
-
-typedef enum
-{
-	CLIENT_NUM = 1024,
-	BUF_LEN = 300000,
-} e_all;
-
 void init(t_client *client)
 {
 	for (int fd = 0; fd < CLIENT_NUM; fd++)
@@ -98,13 +99,12 @@ void init(t_client *client)
 
 int recv_(t_client *client, int target_fd, int fd_max, fd_set *r_fd_set, fd_set *w_fd_set)
 {
-	char buf[BUF_LEN]= {0};
 	char *save_msg = NULL;
 	char *tmp = NULL;
+	char buf[BUF_LEN]= {0};
 	int len = recv(target_fd, buf, BUF_LEN, 0);
 
-	if (0 > len) return 0;
-	else if (len > 0)
+	if (len > 0)
 	{
 		client[target_fd].rb = str_join(client[target_fd].rb, buf);
 		sprintf(buf, "client %d : ", client[target_fd].id);
@@ -120,10 +120,11 @@ int recv_(t_client *client, int target_fd, int fd_max, fd_set *r_fd_set, fd_set 
 			save_msg = str_join(save_msg, tmp);
 			len = extract_message(&client[target_fd].rb, &tmp);
 		}
-		fprintf(stderr, "save: %s", save_msg);
+		fprintf(stderr, "read = %s", save_msg);
 	} 
-	else 
+	else if (len == 0)
 	{
+        //leave client
 		sprintf(buf, "client %d : ", client[target_fd].id);
 		save_msg = str_join(save_msg, buf);
 		
@@ -135,10 +136,17 @@ int recv_(t_client *client, int target_fd, int fd_max, fd_set *r_fd_set, fd_set 
 		close(target_fd);
 		FD_CLR(target_fd, w_fd_set);
 		FD_CLR(target_fd, r_fd_set);
-		
 	}
-	if (!save_msg) 
+    else
+    {
+        return 0;
+    }
+
+	if (!save_msg)
+    {
         return 1;
+    }
+
 	for (int fd = 3; fd <= fd_max; fd++)
 	{
 		if (client[fd].id != -1 && target_fd != fd)
@@ -196,10 +204,15 @@ void check_argc(int argc) {
 
 void init_socket(int *sockfd, const char *ip, const int port, struct sockaddr_in *servaddr)
 {
+    if (!port)
+    {
+        ari_print_error("port error", __FILE__, __LINE__);
+        exit(-1);
+    }
     *sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); 
     if (*sockfd == -1) { 
         ari_print_error("socket error", __FILE__, __LINE__);
-        exit(1); 
+        exit(-1); 
     } 
     bzero(servaddr, sizeof(*servaddr)); 
 
@@ -212,12 +225,12 @@ void init_socket(int *sockfd, const char *ip, const int port, struct sockaddr_in
     if ((bind(*sockfd, (const struct sockaddr *)servaddr, sizeof(*servaddr))) != 0) { 
         ari_print_error("bind error", __FILE__, __LINE__);
         close(*sockfd);
-        exit(1); 
+        exit(-1); 
     } 
     if (listen(*sockfd, 10) != 0) {
         ari_print_error("listen error", __FILE__, __LINE__);
         close(*sockfd);
-        exit(1); 
+        exit(-1); 
     }
 }
 
@@ -262,7 +275,7 @@ int main(int argc, char **argv) {
             {
                 if (target_fd != sockfd)
                 {
-                    // 해당 fd로부터 응답
+                    // 해당 fd 클라이언트로부터 요청
                     if (!recv_(client, target_fd, fd_max, &r_fd_set, &w_fd_set))
                     {
                         for (int i = 0; i <= fd_max; i++)
@@ -278,7 +291,7 @@ int main(int argc, char **argv) {
                 }
                 else
                 {
-                    //client 접속
+                    //client 접속 시도
                     connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
                     if (connfd < 0) 
                         continue;
@@ -286,7 +299,7 @@ int main(int argc, char **argv) {
                     if (fd_max < connfd)
                         fd_max = connfd;
                     id++;
-                    fprintf(stderr, "connfd : %d\n", connfd);
+                    fprintf(stderr, "클라이언트 접속 fd = %d\n", connfd);
                 }
                 select_cnt--;
             }

@@ -26,7 +26,7 @@
 //======================get_next_line.src==============
 
 # ifndef BUFFER_SIZE
-#  define BUFFER_SIZE 2048
+#  define BUFFER_SIZE 8192
 # endif
 
 typedef enum e_success
