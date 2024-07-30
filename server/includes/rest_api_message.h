@@ -23,16 +23,16 @@
 #define MAX_REST_BODY_LEN_LEN		8
 
 typedef struct {
-	char 	mtype[MAX_REST_MTYPE_LEN];					// API별 MTYPE(추후 정의)
-	char 	authorization[MAX_REST_AUTHORIZATION_LEN];	// Token, Auth Info
-	char 	tid[MAX_REST_TID_LEN];						// Transaction ID
-	char 	resCode[MAX_REST_RESULT_CODE_LEN];			// Response Code
-	char 	method[MAX_REST_METHOD_LEN];				// API Method (GET, PUT, POST, DELETE)
+	char 	mtype[MAX_REST_MTYPE_LEN];					// API별 MTYPE(추후 정의) enum -=> string  변홤
+	char 	authorization[MAX_REST_AUTHORIZATION_LEN];	// Token, Auth Info // unuse
+	char 	tid[MAX_REST_TID_LEN];						// Transaction ID    ///1증가
+	char 	resCode[MAX_REST_RESULT_CODE_LEN];			// Response Code     // response 할때 사용.
+	char 	method[MAX_REST_METHOD_LEN];				// API Method (GET, PUT, POST, DELETE) // post
 	char 	uri[MAX_REST_URI_LEN];						// Full URI(ex. http://10.251.217.200:9091/../{sessionId} 
-	char	param1Id[MAX_PARAM_ID_LEN];					// akey
-    char	param2Id[MAX_PARAM_ID_LEN];					// remote ip addr
-	char 	location[MAX_REST_LOCATION_LEN];			// location url
-	char 	continueFlag[MAX_REST_CONTINUE_FLAG_LEN];	// 0: COMPLETED, 1: CONTINUE
+	char	param1Id[MAX_PARAM_ID_LEN];					// akey   // akey
+    char	param2Id[MAX_PARAM_ID_LEN];					// remote ip addr   //상대 IP ~  보내는 ip
+	char 	location[MAX_REST_LOCATION_LEN];			// location url     // unuse
+	char 	continueFlag[MAX_REST_CONTINUE_FLAG_LEN];	// 0: COMPLETED, 1: CONTINUE  //unuse
 	char 	bodyLen[MAX_REST_BODY_LEN_LEN];				// Json Body Length
 } RestLibHeadType;
                          
