@@ -194,7 +194,7 @@ void send_(t_client *client, int target_fd, fd_set *w_fd_set)
 }
 
 void check_argc(int argc) {
-    if (argc != 3)
+    if (argc != 2)
     {
         ari_title_print_fd(STDERR_FILENO, "ARG ERROR [IP] [PORT]", COLOR_RED_CODE);
         ari_title_print_fd(STDERR_FILENO, "ex:[2130706433] [4242]", COLOR_RED_CODE);
@@ -202,23 +202,26 @@ void check_argc(int argc) {
     }
 }
 
-void init_socket(int *sockfd, const char *ip, const int port, struct sockaddr_in *servaddr)
+void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
 {
     if (!port)
     {
         ari_print_error("port error", __FILE__, __LINE__);
         exit(-1);
     }
+
     *sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); 
+
     if (*sockfd == -1) { 
         ari_print_error("socket error", __FILE__, __LINE__);
         exit(-1); 
     } 
+
     bzero(servaddr, sizeof(*servaddr)); 
 
-    // assign IP, PORT 
+    // assign PORT 
     servaddr->sin_family = AF_INET; 
-    servaddr->sin_addr.s_addr = inet_addr(ip);
+    servaddr->sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr->sin_port = htons(port); 
 
     // Binding newly created socket to given IP and verification 
@@ -255,7 +258,7 @@ int main(int argc, char **argv) {
     len = sizeof(cli);
 
     check_argc(argc);
-    init_socket(&sockfd, argv[1], atoi(argv[2]), &servaddr);
+    init_socket(&sockfd, atoi(argv[1]), &servaddr);
     init(client);
 
     fd_max = sockfd;
