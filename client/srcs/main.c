@@ -39,7 +39,7 @@ size_t str_delim_len(const char *str, const char delim)
     return (len);
 }
 
-char *pass_char(char *msg, char *delim) 
+const char *pass_char(const char *msg, char *delim) 
 {
     while (*msg != '\0') 
     {
@@ -54,10 +54,13 @@ char *pass_char(char *msg, char *delim)
 
 int insert_api_method(RestMsgType *type, const char *msg)
 {
-    char *method[] = {"POST", "PUT", "GET", "DELETE"};
-    int in_api = 0;
-    int method_index = -1;
-    char *cpy_msg = pass_char(msg, " \f\n\r\t\v");
+    char        *method[] = {"POST", "PUT", "GET", "DELETE"};
+    int         in_api = 0;
+    int         method_index = -1;
+    const char  *cpy_msg = pass_char(msg, " \f\n\r\t\v");
+    const char  *uri;
+    int         uri_len;
+
 
     while (in_api == 0 && ++method_index < 4)
     {
@@ -70,14 +73,21 @@ int insert_api_method(RestMsgType *type, const char *msg)
     }
 
     strcpy(type->header.method, method[method_index]);
+    uri = pass_char(cpy_msg + strlen(type->header.method), " \f\n\r\t\v");
+    uri_len =  str_delim_len(uri, ' ');
+    //strncpy(type->header.uri, uri, uri_len);
+    type->header.uri[uri_len] = '/';
+    
+    printf("print type method : %s\n", type->header.method);
+    // TODO : 이거 하기 전에 호스트  
+    printf("print type uri: %s\n", type->header.uri);
 
-    // printf("print type : %s\n", type->header.method);
     return 1;
 }
 
-int insert_full_url(RestMsgType *type, const char *msg)
+int insert_uri(RestMsgType *type, const char *msg)
 {
-    char *cpy_msg = pass_char(msg, " \f\n\r\t\v");
+    const char *cpy_msg = pass_char(msg, " \f\n\r\t\v");
 
     if (strncmp("Host", cpy_msg, 4))
     {
@@ -85,92 +95,128 @@ int insert_full_url(RestMsgType *type, const char *msg)
     }
 
     cpy_msg = pass_char(cpy_msg + 4, " \f\n\r\t\v:");
+    printf("cpy_msg: %s\n", cpy_msg);
+    //   memmove(type->header.)
     // TODO : 여기부터 url save && 
     
     
 
     (void) type;
     (void) msg;
-    return 0;
+    return 2;
+}
+
+int insert_akey(RestMsgType *type, const char *msg)
+{
+    const char *cpy_msg = pass_char(msg, " \f\n\r\t\v");
+
+    if (strncmp("akey", cpy_msg, 4))
+    {
+        return 0;
+    }
+
+    cpy_msg = pass_char(cpy_msg + 4, " \f\n\r\t\v:");
+    strncpy(type->header.param1Id, cpy_msg, str_delim_len(cpy_msg, '\n'));
+
+    // printf("type->header.param1Id : %s\n", type->header.param1Id);
+    return 4;
+}
+
+void insert_tid(RestMsgType *type)
+{
+    static int   tid;
+
+    tid++;
+    if (tid == 2146435072)
+        tid = 0;
+
+    memcpy(type->header.tid, &tid, MAX_REST_TID_LEN);
+}
+
+void insert_mtype(RestMsgType *type, int type_num)
+{
+    const char   *rest_api[] = {
+        FOREACH_REST_API(GENERATE_REST_API_STRING)
+    };
+
+    memcpy(type->header.mtype, rest_api[type_num], strlen(rest_api[type_num]));
+}
+
+int insert_body(RestMsgType *type, const char *msg, int bracket_pos, int msg_len)
+{
+    int      body_len = 0;
+
+    body_len = msg_len - bracket_pos;
+
+    if (!is_valid_json(msg + bracket_pos))
+    {
+        ari_print_error("wrong json body", __FILE__, __LINE__ );
+        return 0;
+    }
+    memcpy(type->jsonBody, msg + bracket_pos, msg_len);
+    memcpy(type->header.bodyLen, &body_len, MAX_REST_BODY_LEN_LEN);
+
+    printf("type->jsonBody : %s\n", type->jsonBody); // TODO : 지워
+
+    return 1;
+}
+
+void insert_param2Id(RestMsgType *type, char *ip) 
+{
+    strcpy(type->header.param2Id, ip);
+    printf("res_msg_type : %s \n", type->header.param2Id);
 }
 
 /*
  * @brief 
  * 1 = insert_api_method
  * 2 = insert_full_url
- * 3 = insert_akey
- * 4 = insert_remote_ip_addr
+ * 4 = insert_akey
  * */
-int insert_type_header(RestMsgType *type, const char *msg, int msg_len)
-{
-    int line_start_pos = 0;
-    int line_end_pos = str_delim_len(msg, '\n');
-    int checking_num = 0;
-
-    // TODO: 지워
-    (void) msg_len;
-
-    while (line_start_pos < line_end_pos)
-    {
-        checking_num |= insert_api_method(type, msg + line_start_pos);
-/*
-        checking_num |= insert_full_url(type, msg + line_start_pos, line_start_pos, line_end_pos);
-        checking_num |= insert_akey(type, msg + line_start_pos, line_start_pos, line_end_pos);
-        checking_num |= insert_remote_ip_addr(type, msg + line_start_pos, line_start_pos, line_end_pos);
-*/
-
-        line_start_pos = line_end_pos + 1;
-        line_end_pos = str_delim_len(msg + line_start_pos, '\n');
-    }
-
-    printf("checking_num : %d\n", checking_num);
-
-    return (checking_num);
-}
-
-void parsing_json_string(RestMsgType *type, const char *msg, const int msg_len)
+void parsing_msg(RestMsgType *type, const char *msg, int msg_len)
 {
     // TODO : 나중에 지워
     printf("읽은 파일 길이 : %ld \n읽은 파일  \n%s \n", strlen(msg), msg);
 
-    char         *cpy_msg = malloc(msg_len + 1);
-    char         tmp_str[513];
-    size_t       line_start = 0;
-    static int   tid;
-    const size_t bracket_pos = str_delim_len(msg, '{');
-    int          body_len = 0;
+    const size_t header_len = str_delim_len(msg, '{');
+    int          rest_api_num = 5;
+    int          line_start_pos = 0;
+    int          line_end_pos = str_delim_len(msg, '\n');
+    int          checking_num = 0;
+    char         *cpy_msg = malloc(header_len + 1);
 
-    if (tid == 2146435072)
-        tid = 0;
-
-    memmove(cpy_msg, msg, msg_len);
-    bzero(tmp_str, sizeof(tmp_str));
-
-
-    if (!is_valid_json(cpy_msg + bracket_pos))
+    if (!insert_body(type, msg, header_len, msg_len))
     {
-        free(cpy_msg);
-        ari_title_print_fd(2, "invalid json", COLOR_RED_CODE);
-        return ;
+        return (free(cpy_msg));
     }
-    tid++;
-    memcpy(type->header.tid, &tid, MAX_REST_TID_LEN);
 
-    body_len = msg_len - bracket_pos;
-    memcpy(type->jsonBody, cpy_msg + bracket_pos, msg_len);
-    memcpy(type->header.bodyLen, &body_len, MAX_REST_BODY_LEN_LEN);
-    //printf("%s\n", type->jsonBody);
-    cpy_msg[bracket_pos] = '\0';
-    //printf("cpy_msg = %s\n", cpy_msg);
-    insert_type_header(type, cpy_msg, bracket_pos);
+    insert_param2Id(type, ip);
+    insert_tid(type);
+    insert_mtype(type, rest_api_num);
+
+    memmove(cpy_msg, msg, header_len);
+    cpy_msg[header_len] = '\0';
+
+    // 아 연결리스트 만들걸..... 
+    while (line_start_pos < line_end_pos)
+    {
+        //ari_title_print_fd(2, msg + line_end_pos, COLOR_GREEN_CODE);
+        checking_num |= insert_api_method(type, msg + line_start_pos);
+        checking_num |= insert_uri(type, msg + line_start_pos);
+        // TODO : host : host + 파싱
+        checking_num |= insert_akey(type, msg + line_start_pos);
+
+        line_start_pos = line_end_pos + 1;
+        line_end_pos += str_delim_len(msg + line_start_pos, '\n') + 1;
+        // printf("str_delim_len: %d\n", (int)*(msg + line_end_pos));
+        // printf("line_start_pos %d, line_end_pos : %d\n", line_start_pos, line_end_pos);
+    }
+
 
     ari_print_error(cpy_msg, __FILE__, __LINE__);
     exit(1);
-    while (line_start < bracket_pos)
-    {
-        
-    }
 
+    return (free(cpy_msg));
 
     
 /*
@@ -225,7 +271,9 @@ int main(int argc, char **argv)
     // TODO: 나중에 지워
     int fd = open("test/reqSet/mcp_req.json", O_RDONLY);
     msg_len = read(fd, msg, BUF_SIZE - 1);
-    parsing_json_string(&res_msg_type, msg, msg_len);
+
+
+    parsing_msg(&res_msg_type, msg, msg_len);
     exit(0);
 
     if (connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr)) == -1)
@@ -240,9 +288,10 @@ int main(int argc, char **argv)
 
     while (1)
     {
+        // bzero(&res_msg_type, sizeof(res_msg_type))
         //read(STDIN_FILENO, msg, BUF_SIZE);
-        parsing_json_string(&res_msg_type, msg, msg_len);
         // 파싱
+        parsing_msg(&res_msg_type, msg, msg_len, argv[1], argv[2]);
         // 저장
 
         // 전송

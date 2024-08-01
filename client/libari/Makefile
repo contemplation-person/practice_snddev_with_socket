@@ -8,7 +8,8 @@ NAME			= 	libari.a
 SRC 			= 	ari_get_next_line.c \
 					ari_putendl_fd.c \
 					ari_putstr_fd.c \
-					ari_title_print.c
+					ari_title_print.c \
+					ari_list.c
 
 OBJS	  		= 	$(SRC:.c=.o)
 				

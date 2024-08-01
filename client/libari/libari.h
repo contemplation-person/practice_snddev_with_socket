@@ -45,6 +45,12 @@ typedef struct s_gnl_list
 	struct s_gnl_list	*prev;
 }t_g_list;
 
+typedef struct s_node {
+    char            *key;
+    void            *value;
+    struct s_node   *next;
+} ari_node;
+
 
 t_success	join_str(t_g_list **fd_lst, char **str, ssize_t read_len);
 t_success	read_str(t_g_list **fd_lst, int fd);
@@ -65,5 +71,11 @@ size_t  ari_putendl_fd(const char *s, int fd);
 void    ari_title_print(const char *string, const int color_code); 
 void    ari_title_print_fd(const int fd, const char *string, const int color_code);
 void    ari_print_error(const char *string, const char *file, const int line);
+
+// list
+ari_node *new_node(char *key, void *value);
+ari_node *search_node(ari_node *head, char *key);
+ari_node *insert_node(ari_node *head_node, ari_node *insert_node, char *key);
+ari_node *ari_del_node(ari_node *head_node, char *key, void *del_value(void *));
 
 #endif
