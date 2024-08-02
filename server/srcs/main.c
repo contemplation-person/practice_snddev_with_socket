@@ -1,5 +1,6 @@
 #include "libari.h"
 #include "rest_api_message.h"
+#include "medif_api.h"
 
 #include <errno.h>
 #include <string.h>
@@ -13,8 +14,8 @@
 
 typedef struct
 {
-    char *rb;
-    char *wb;
+    SocketHeader header;
+    RestMsgType msg;
 } t_client;
 
 typedef enum
@@ -80,42 +81,101 @@ char *str_join(char *buf, char *add)
     return (newbuf);
 }
 
-size_t ari_send_fd(int fd, char *msg)
-{
-    return send(fd, msg, strlen(msg), 0);
-}
-
 void init(t_client *client)
 {
-    for (int fd = 0; fd < CLIENT_NUM; fd++)
+    bzero(client, sizeof(t_client) * CLIENT_NUM);
+}
+
+void set_client_send_msg(t_client *client, int target_fd)
+{
+    char *str_rest_api[] = {
+        FOREACH_REST_API(GENERATE_REST_API_STRING)
+        };
+
+    bzero(&(client[target_fd]), sizeof(t_client));
+
+    client[target_fd].header.bodyLen = sizeof(client[target_fd].msg.jsonBody);
+    client[target_fd].header.mType = CREATE_SNDDEV_POLICY;
+    strcpy(client[target_fd].msg.header.mtype, str_rest_api[CREATE_SNDDEV_POLICY]);
+}
+
+void create_file(char *fileName, FILE **fp, FILE **fp2)
+{
+    int i = 0;
+    char buf[60] = { 0, }; // 나중에 맥 주소를 받는다
+
+    while (1)
     {
-        client[fd].wb = NULL;
-        client[fd].rb = NULL;
+        sprintf(buf, "%s%d", fileName, i);
+        if ((*fp = fopen(buf, "r")) == NULL)
+        {
+            *fp = fopen(buf, "w");
+            break;
+        }
+        fclose(*fp);
+        i++;
+    }
+
+    while (1)
+    {
+        sprintf(buf, "%s%d", fileName, i);
+        if ((*fp2 = fopen(buf, "r")) == NULL)
+        {
+            *fp2 = fopen(buf, "w");
+            break;
+        }
+        fclose(*fp2);
+        i++;
     }
 }
 
-int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
+void set_client_send_error_msg(t_client *client, int target_fd)
 {
-    char *save_msg = NULL;
-    char buf[BUF_LEN] = {0};
-    int len = recv(target_fd, buf, BUF_LEN, 0);
+    bzero(&(client[target_fd]), sizeof(t_client));
 
-    (void)client;
+    client[target_fd].header.bodyLen = 0;
+    client[target_fd].header.mType = CREATE_SNDDEV_POLICY;
+}
+
+int recv_client(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
+{
+    int len = recv(target_fd, &(client[target_fd]), sizeof(t_client), 0);
+    static const char *akey = "EMG@an#2345&12980!";
+    FILE *fp;
+    FILE *fp2;
 
     if (len > 0)
     {
         // recv message
-        fprintf(stderr, "read = %s", save_msg);
+        fprintf(stderr, "read = %s", client[target_fd].msg.jsonBody);
+        // akey 를 검사하고 맞으면 file에 저장
+        if (strcmp(client[target_fd].msg.header.param1Id, akey) == 0)
+        {
+            // sprintf 를 사용하여 파일에 저장, 파일이 존재하면 -숫자를 붙여서 저장
+            // 파일에 저장 내용 파싱
+            // 저장
+
+            char buf[60] = { 't','e','\0' }; // TODO: 나중에 맥 주소를 받는다
+            create_file(buf, &fp, &fp2);
+
+            //fprintf(fp, "%s", client[target_fd].msg.jsonBody);
+
+            fclose(fp);
+            fclose(fp2);
+            
+            set_client_send_msg(client, target_fd);
+        }
+        else
+        {
+            // akey가 틀린 경우
+            // send error message
+            set_client_send_error_msg(client, target_fd);
+        }
     }
     else if (len == 0)
     {
         // leave client
-        save_msg = str_join(save_msg, buf);
-
-        free(client[target_fd].wb);
-        free(client[target_fd].rb);
-        client[target_fd].wb = NULL;
-        client[target_fd].rb = NULL;
+        bzero(&(client[target_fd]), sizeof(t_client)); 
         close(target_fd);
         FD_CLR(target_fd, w_fd_set);
         FD_CLR(target_fd, r_fd_set);
@@ -128,30 +188,23 @@ int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
     return 1;
 }
 
-void register_(t_client *client, int target_fd, fd_set *r_fd_set)
+
+void send_client(t_client *client, int target_fd, fd_set *w_fd_set)
 {
-    (void)client;
-    (void)target_fd;
-    (void)r_fd_set;
+    int send_len = send(target_fd, &(client[target_fd]), sizeof(t_client), 0);
+    int msg_len = sizeof(RestMsgType);
+    // send message 작으면 같아질 때까지 다시 보내기
 
-    FD_SET(target_fd, r_fd_set);
-}
-
-void send_(t_client *client, int target_fd, fd_set *w_fd_set)
-{
-    int send_len = ari_send_fd(target_fd, client[target_fd].wb);
-    int wb_len = strlen(client[target_fd].wb);
-
-    if (send_len == wb_len)
+    if (send_len < 0)
     {
-        free(client[target_fd].wb);
-        client[target_fd].wb = 0;
-        FD_CLR(target_fd, w_fd_set);
+        ari_print_error("send error", __FILE__, __LINE__);
+        return;
     }
-    else
+    while (send_len < msg_len)
     {
-        strcpy(client[target_fd].wb, &client[target_fd].wb[send_len]);
+        send_len += send(target_fd, &(client[target_fd]) + send_len, sizeof(t_client) - send_len, 0);
     }
+    FD_CLR(target_fd, w_fd_set);
 }
 
 void check_argc(int argc)
@@ -243,7 +296,7 @@ int main(int argc, char **argv)
                 if (target_fd != sockfd)
                 {
                     // 해당 fd 클라이언트로부터 요청
-                    recv_(client, target_fd, &r_fd_set, &w_fd_set);
+                    recv_client(client, target_fd, &r_fd_set, &w_fd_set);
                     fprintf(stderr, "target fd : %d\n", target_fd);
                 }
                 else
@@ -252,7 +305,7 @@ int main(int argc, char **argv)
                     connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
                     if (connfd < 0)
                         continue;
-                    register_(client, connfd, &r_fd_set);
+                    FD_SET(target_fd, &r_fd_set);
                     if (fd_max < connfd)
                         fd_max = connfd;
                     fprintf(stderr, "클라이언트 접속 fd = %d\n", connfd);
@@ -262,7 +315,7 @@ int main(int argc, char **argv)
             if (FD_ISSET(target_fd, &w_copy_fd_set))
             {
                 // target 메세지 보내기
-                send_(client, target_fd, &w_fd_set);
+                send_client(client, target_fd, &w_fd_set);
                 select_cnt--;
             }
         }
