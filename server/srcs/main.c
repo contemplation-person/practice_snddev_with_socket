@@ -1,6 +1,7 @@
 #include "libari.h"
 #include "rest_api_message.h"
 #include "medif_api.h"
+#include "json-c/json.h"
 
 #include <errno.h>
 #include <string.h>
@@ -99,17 +100,16 @@ void set_client_send_msg(t_client *client, int target_fd)
     strcpy(client[target_fd].msg.header.mtype, str_rest_api[CREATE_SNDDEV_POLICY]);
 }
 
-void create_file(char *fileName, FILE **fp, FILE **fp2)
+void create_file(char *file_name, FILE **fp, FILE **fp2)
 {
     int i = 0;
-    char buf[60] = { 0, }; // 나중에 맥 주소를 받는다
 
     while (1)
     {
-        sprintf(buf, "%s%d", fileName, i);
-        if ((*fp = fopen(buf, "r")) == NULL)
+        sprintf(file_name, "%s_%d", file_name, i);
+        if ((*fp = fopen(file_name, "r")) == NULL)
         {
-            *fp = fopen(buf, "w");
+            *fp = fopen(file_name, "w");
             break;
         }
         fclose(*fp);
@@ -118,10 +118,10 @@ void create_file(char *fileName, FILE **fp, FILE **fp2)
 
     while (1)
     {
-        sprintf(buf, "%s%d", fileName, i);
-        if ((*fp2 = fopen(buf, "r")) == NULL)
+        sprintf(file_name, "%s_%d", file_name, i);
+        if ((*fp2 = fopen(file_name, "r")) == NULL)
         {
-            *fp2 = fopen(buf, "w");
+            *fp2 = fopen(file_name, "w");
             break;
         }
         fclose(*fp2);
@@ -137,6 +137,19 @@ void set_client_send_error_msg(t_client *client, int target_fd)
     client[target_fd].header.mType = CREATE_SNDDEV_POLICY;
 }
 
+void write_file(FILE *fp, FILE *fp2, t_client *client)
+{
+    char buf[1000] = {0,};
+
+    int line = sprintf(buf, "MAC\t\t\t\t:%s\n", client->msg.header.param2Id);
+    // TODO : json에서 데이터를 뽑아서 저장
+    line = sprintf(buf + line, "helloworld\t\t\t\t:\n");
+
+
+    fprintf(fp, "%s", client->msg.jsonBody);
+    fprintf(fp2, "%s", client->msg.jsonBody);
+}
+
 int recv_client(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
     int len = recv(target_fd, &(client[target_fd]), sizeof(t_client), 0);
@@ -148,17 +161,19 @@ int recv_client(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_
     {
         // recv message
         fprintf(stderr, "read = %s", client[target_fd].msg.jsonBody);
-        // akey 를 검사하고 맞으면 file에 저장
         if (strcmp(client[target_fd].msg.header.param1Id, akey) == 0)
         {
             // sprintf 를 사용하여 파일에 저장, 파일이 존재하면 -숫자를 붙여서 저장
             // 파일에 저장 내용 파싱
             // 저장
 
-            char buf[60] = { 't','e','\0' }; // TODO: 나중에 맥 주소를 받는다
+            char mac[60] = {0, }; // TODO: 나중에 맥 주소를 받는다
+
+            sprintf(mac, "%s", client[target_fd].msg.header.param2Id);
             create_file(buf, &fp, &fp2);
 
             //fprintf(fp, "%s", client[target_fd].msg.jsonBody);
+            write_file(fp, fp2, client);
 
             fclose(fp);
             fclose(fp2);
@@ -167,8 +182,6 @@ int recv_client(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_
         }
         else
         {
-            // akey가 틀린 경우
-            // send error message
             set_client_send_error_msg(client, target_fd);
         }
     }
@@ -265,12 +278,14 @@ int main(int argc, char **argv)
 
     struct sockaddr_in servaddr;
     struct sockaddr_in cli;
-    t_client client[CLIENT_NUM];
+    t_client client[CLIENT_NUM + 1];
+    char *client_ip[1025] = {0,};
 
     fd_set w_fd_set;
     fd_set r_fd_set;
     fd_set w_copy_fd_set;
     fd_set r_copy_fd_set;
+
 
     len = sizeof(cli);
 
@@ -303,8 +318,10 @@ int main(int argc, char **argv)
                 {
                     // client 접속 시도
                     connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
+                    // client에 ip 주소 삽입
                     if (connfd < 0)
                         continue;
+                    client_ip[connfd] = inet_ntoa(cli.sin_addr);
                     FD_SET(target_fd, &r_fd_set);
                     if (fd_max < connfd)
                         fd_max = connfd;
