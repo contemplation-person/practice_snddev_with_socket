@@ -12,165 +12,67 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define CLIENT_NUM  1025
+
 typedef struct
 {
-	int id;
-	char *rb;
-	char *wb;
+    char buf[BUFSIZ];
 } t_client;
 
-typedef enum
+int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
-	CLIENT_NUM = 3000,
-	BUF_LEN = 300000,
-} e_all;
+    int goal_len = sizeof(t_client);
+    int start_pos = 0;
+	int recv_len = recv(target_fd, client + target_fd, goal_len, 0);
 
-int extract_message(char **buf, char **msg)
-{
-	char	*newbuf;
-	int	i;
-
-	*msg = 0;
-	if (*buf == 0)
-		return (0);
-	i = 0;
-	while ((*buf)[i])
+	if (0 > recv_len) 
+        return 0;
+	else if (recv_len == 0)
 	{
-		if ((*buf)[i] == '\n')
-		{
-			newbuf = calloc(1, sizeof(*newbuf) * (strlen(*buf + i + 1) + 1));
-			if (newbuf == 0)
-				return (-1);
-			strcpy(newbuf, *buf + i + 1);
-			*msg = *buf;
-			(*msg)[i + 1] = 0;
-			*buf = newbuf;
-			return (1);
-		}
-		i++;
-	}
-	return (0);
-}
-
-char *str_join(char *buf, char *add)
-{
-	char	*newbuf;
-	int		len;
-
-	if (buf == 0)
-		len = 0;
-	else
-		len = strlen(buf);
-	newbuf = malloc(sizeof(*newbuf) * (len + strlen(add) + 1));
-	if (newbuf == 0)
-		return (0);
-	newbuf[0] = 0;
-	if (buf != 0)
-		strcat(newbuf, buf);
-	free(buf);
-	strcat(newbuf, add);
-	return (newbuf);
-}
-
-void init(t_client *client)
-{
-	for (int fd = 0; fd < CLIENT_NUM; fd++)
-	{
-		client[fd].id = -1;
-		client[fd].wb = NULL;
-		client[fd].rb = NULL;
-	}
-}
-
-
-int recv_(t_client *client, int target_fd, int fd_max, fd_set *r_fd_set, fd_set *w_fd_set)
-{
-	char buf[BUF_LEN]= {0};
-	char *save_msg = NULL;
-	char *tmp = NULL;
-	int len = recv(target_fd, buf, BUF_LEN, 0);
-
-	if (0 > len) return 0;
-	else if (len > 0)
-	{
-        fprintf(stderr,"recvlen : %d, buf : %s\n", len, buf);
-		client[target_fd].rb = str_join(client[target_fd].rb, buf);
-
-		sprintf(buf, "client %d : ", client[target_fd].id);
-		len = extract_message(&client[target_fd].rb, &tmp);
-		while (len)
-		{
-			if (len == -1)
-			{
-				free(tmp);
-				return 0;
-			}
-			save_msg = str_join(save_msg, buf);
-			save_msg = str_join(save_msg, tmp);
-			len = extract_message(&client[target_fd].rb, &tmp);
-		}
-		fprintf(stderr, "save: %s", save_msg);
-	} 
-	else 
-	{
-		sprintf(buf, "client %d : ", client[target_fd].id);
-		save_msg = str_join(save_msg, buf);
-
-		client[target_fd].id = -1;
-		free(client[target_fd].wb);
-		free(client[target_fd].rb);
-		client[target_fd].wb = NULL;
-		client[target_fd].rb = NULL;
+        // client leave
+        bzero(client + target_fd, sizeof(t_client));
 		close(target_fd);
 		FD_CLR(target_fd, w_fd_set);
 		FD_CLR(target_fd, r_fd_set);
-
-	}
-	if (!save_msg) return 1;
-	for (int fd = 3; fd <= fd_max; fd++)
+	} 
+	else 
 	{
-		if (client[fd].id != -1 && target_fd != fd)
+		goal_len -= recv_len;
+		start_pos += recv_len;
+		printf("recv goal : %d\n", goal_len);
+		while (goal_len)
 		{
-			client[fd].wb = str_join(client[fd].wb, save_msg);
-			FD_SET(fd, w_fd_set);
+			recv_len = recv(target_fd, client + target_fd + start_pos, goal_len, 0);
+			goal_len -= recv_len;
+			start_pos += recv_len;
+			printf("다시 recv 던진 길이 : %d\n", goal_len);
 		}
-	}	
+		FD_SET(target_fd, w_fd_set);
+	}
 	return 1;
-}
-
-
-void register_(t_client *client, int target_fd, int id, int fd_max, fd_set *r_fd_set, fd_set *w_fd_set)
-{
-	char prifix_msg[50] = {0};
-
-	sprintf(prifix_msg, "serv: client %d arrived\n", id);
-	client[target_fd].id = id;
-	FD_SET(target_fd, r_fd_set);
-	for (int fd = 3; fd <= fd_max; fd++)
-	{
-		if (client[fd].id != -1 && target_fd != fd)
-		{
-			client[fd].wb = str_join(client[fd].wb, prifix_msg);
-			FD_SET(fd, w_fd_set);
-		}
-	}
 }
 
 void send_(t_client *client, int target_fd, fd_set *w_fd_set)
 {
-	int send_len = ari_putstr_fd(client[target_fd].wb, target_fd);
-	int wb_len = strlen(client[target_fd].wb);
+    int goal_len = sizeof(t_client);
+    int send_len = 0;
+    int start_pos = 0;
 
-	if (send_len == wb_len)
-	{
-		free(client[target_fd].wb);
-		client[target_fd].wb = 0;
-		FD_CLR(target_fd, w_fd_set);
-	}
-	else
-	{
-		strcpy(client[target_fd].wb, &client[target_fd].wb[send_len]);
-	}
+    do 
+    {
+        send_len = send(target_fd , client + target_fd + start_pos, goal_len, 0);
+		if (send_len == -1)
+		{
+			fprintf(stderr, "send Error: %s\n", strerror(errno));
+			break;
+		}
+		start_pos += send_len;
+        goal_len -= send_len;
+    } while (goal_len > 0);
+
+    // 해당 클라이언트 초기화
+    bzero(client + target_fd, sizeof(t_client));
+    FD_CLR(target_fd, w_fd_set);
 }
 
 void check_argc(int argc)
@@ -224,17 +126,17 @@ int main(int argc, char **argv) {
 
 	int sockfd;
     int connfd;
+	int s_cnt;
+    int fd_max;
+
 	int id = 0;
     int len = sizeof(cli);
 
-	t_client client[CLIENT_NUM];
+	t_client client[CLIENT_NUM] = {0,};
 
     check_argc(argc);
 
     sockfd = init_socket(argv[1], &servaddr);
-
-	int fd_max = sockfd;
-	int s_cnt;
 
 	fd_set w_fd_set;
 	fd_set r_fd_set;
@@ -245,7 +147,7 @@ int main(int argc, char **argv) {
 	FD_ZERO(&w_fd_set);
 	FD_SET(sockfd, &r_fd_set);
 
-	init(client);
+	fd_max = sockfd;
 	while (42)
 	{
 		w_copy_fd_set = w_fd_set;
@@ -257,18 +159,22 @@ int main(int argc, char **argv) {
 			{
 				send_(client, target_fd, &w_fd_set);
                 s_cnt--;
-			}
+            }
 			if (FD_ISSET(target_fd, &r_copy_fd_set))
 			{
 				if (target_fd != sockfd)
 				{
-					if (!recv_(client, target_fd, fd_max, &r_fd_set, &w_fd_set))
+					printf("in target_fd : %d\n", target_fd);
+					if (!recv_(client, target_fd, &r_fd_set, &w_fd_set))
 					{
-						for (int i = 0; i <= fd_max; i++)
+						for (int i = 3; i <= fd_max; i++)
 						{
-							if (client[target_fd].id != -1)
-								close(target_fd), close(sockfd);
+							if (client[i].buf)
+								close(target_fd);
 						}
+                        close(sockfd);
+                        fprintf(stderr, "recv Error: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
 					}
 					fprintf(stderr, "target fd : %d\n", target_fd);
 				}
@@ -277,14 +183,14 @@ int main(int argc, char **argv) {
 					connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
 					if (connfd < 0) 
 						continue;
-					register_(client, connfd, id, fd_max, &r_fd_set, &w_fd_set);
-					if (fd_max < connfd)
+                    FD_SET(connfd, &r_fd_set);
+					fprintf(stderr, "connfd : %d\n", connfd);
+                    if (fd_max < connfd)
 						fd_max = connfd;
 					id++;
-					fprintf(stderr, "connfd : %d\n", connfd);
 				}
                 s_cnt--;
-			}
-		}
+            }
+        }
 	}
 }
