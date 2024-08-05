@@ -21,7 +21,7 @@ typedef struct
 
 int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
-    int goal_len = sizeof(t_client);
+    int goal_len = BUFSIZ;
     int start_pos = 0;
 	int recv_len = recv(target_fd, client + target_fd, goal_len, 0);
 
@@ -37,15 +37,13 @@ int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 	} 
 	else 
 	{
+		printf("goal_len : %d, recv_len : %d, start_pos : %d\n", goal_len, recv_len, start_pos);
 		goal_len -= recv_len;
-		start_pos += recv_len;
-		printf("recv goal : %d\n", goal_len);
-		while (goal_len)
+		while (0 < goal_len)
 		{
-			recv_len = recv(target_fd, client + target_fd + start_pos, goal_len, 0);
+			recv_len = recv(target_fd, client[target_fd].buf + start_pos, goal_len, 0);
 			goal_len -= recv_len;
 			start_pos += recv_len;
-			printf("다시 recv 던진 길이 : %d\n", goal_len);
 		}
 		FD_SET(target_fd, w_fd_set);
 	}
@@ -54,7 +52,7 @@ int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 
 void send_(t_client *client, int target_fd, fd_set *w_fd_set)
 {
-    int goal_len = sizeof(t_client);
+    int goal_len = BUFSIZ;
     int send_len = 0;
     int start_pos = 0;
 
