@@ -12,8 +12,6 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
-#define BUF_SIZE 8192
-
 int is_valid_json(const char *json_string) 
 {
     struct json_object *parsed_json = json_tokener_parse(json_string);
@@ -40,13 +38,8 @@ int is_valid_json(const char *json_string)
 /*
     edge case는 뭐가 있을까???????
  */
-/*
-typedef struct 
-{
-    SocketHeader    header;
-    RestLibHeadType rest_header;
-} SendMsgType;
 
+/*
 int make_json_body(SendMsgType *msg)
 {
     json_object *json_root = json_object_new_object();
@@ -90,9 +83,9 @@ int main(int argc, char **argv)
 {
     int                     sock = 0;
     //int                     msg_len = 0;
-    char                    msg[BUF_SIZE] = {0,};
     struct sockaddr_in      server_addr;
-    //SendMsgType             msg;
+    char                    msg[BUFSIZ];
+
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -121,14 +114,15 @@ int main(int argc, char **argv)
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
-    bzero(&msg, sizeof(BUF_SIZE));
+    bzero(&msg, sizeof(BUFSIZ));
     printf("sock fd = %d\n", sock);
 
-    char *echo_test = "echo send test";
-    printf("write : %ld\n", write(sock, echo_test, strlen(echo_test)));
-    printf("이 데이터가 넘어감 %s\n", echo_test);
-    recv(sock, msg, BUF_SIZE, 0);
-    printf("recv : %s\n", msg);
+    strcpy(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType), "hello world");
+    write(sock, msg, sizeof(BUFSIZ));
+    printf("이 데이터가 넘어감 %s\n", msg + sizeof(SocketHeader) + sizeof(RestLibHeadType));
+    recv(sock, msg, sizeof(BUFSIZ), 0);
+
+    printf("받은 msg : %s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
     // bzero(&res_msg_type, sizeof(res_msg_type))
     //read(STDIN_FILENO, msg, BUF_SIZE);
     // 파싱
