@@ -118,13 +118,15 @@ int init_socket(char *port, struct sockaddr_in *servaddr)
     return sockfd;
 }
 
+char *allowed_ip = "127.0.0.1";
+
 int main(int argc, char **argv) {
 	struct sockaddr_in servaddr;
 	struct sockaddr_in cli; 
 
 	int sockfd;
     int connfd;
-	int s_cnt;
+	int select_cnt;
     int fd_max;
 
 	int id = 0;
@@ -150,13 +152,13 @@ int main(int argc, char **argv) {
 	{
 		w_copy_fd_set = w_fd_set;
 		r_copy_fd_set = r_fd_set;
-		s_cnt = select(fd_max + 1, &r_copy_fd_set, &w_copy_fd_set, NULL, NULL);
-		for(int target_fd = 3; target_fd <= fd_max && s_cnt > 0; target_fd++)
+		select_cnt = select(fd_max + 1, &r_copy_fd_set, &w_copy_fd_set, NULL, NULL);
+		for(int target_fd = 3; target_fd <= fd_max && select_cnt > 0; target_fd++)
 		{
             if (FD_ISSET(target_fd, &w_copy_fd_set))
 			{
 				send_(client, target_fd, &w_fd_set);
-                s_cnt--;
+                select_cnt--;
             }
 			if (FD_ISSET(target_fd, &r_copy_fd_set))
 			{
@@ -179,6 +181,12 @@ int main(int argc, char **argv) {
 				else
 				{
 					connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
+					if (strncmp(inet_ntoa(cli.sin_addr), allowed_ip, strlen(allowed_ip)))
+					{
+						ari_putstr_fd("not allowed ip\n", 2);
+						close(connfd);
+						continue;
+					}
 					if (connfd < 0) 
 						continue;
                     FD_SET(connfd, &r_fd_set);
@@ -187,7 +195,7 @@ int main(int argc, char **argv) {
 						fd_max = connfd;
 					id++;
 				}
-                s_cnt--;
+                select_cnt--;
             }
         }
 	}
