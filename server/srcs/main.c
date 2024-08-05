@@ -93,7 +93,9 @@ int recv_(t_client *client, int target_fd, int fd_max, fd_set *r_fd_set, fd_set 
 	if (0 > len) return 0;
 	else if (len > 0)
 	{
+        fprintf(stderr,"recvlen : %d, buf : %s\n", len, buf);
 		client[target_fd].rb = str_join(client[target_fd].rb, buf);
+
 		sprintf(buf, "client %d : ", client[target_fd].id);
 		len = extract_message(&client[target_fd].rb, &tmp);
 		while (len)
@@ -181,17 +183,10 @@ void check_argc(int argc)
     }
 }
 
-int main(int argc, char **argv) {
-	struct sockaddr_in servaddr;
-	struct sockaddr_in cli; 
-	int sockfd;
-    int connfd;
-	int id = 0;
-    int len = sizeof(cli);
-
-	t_client client[CLIENT_NUM];
-
-    check_argc(argc);
+int init_socket(char *port, struct sockaddr_in *servaddr)
+{
+    int sockfd;
+    int true = 1;
 
 	// socket create and verification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
@@ -200,15 +195,17 @@ int main(int argc, char **argv) {
 		exit(1); 
 	} 
 
-	bzero(&servaddr, sizeof(servaddr)); 
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void *)&true, sizeof(socklen_t));
+
+	bzero(servaddr, sizeof(*servaddr)); 
 
 	// assign IP, PORT 
-	servaddr.sin_family = AF_INET; 
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY); //127.0.0.1
-	servaddr.sin_port = htons(atoi(argv[1])); 
+	servaddr->sin_family = AF_INET; 
+	servaddr->sin_addr.s_addr = htonl(INADDR_ANY); //127.0.0.1
+	servaddr->sin_port = htons(atoi(port)); 
 
 	// Binding newly created socket to given IP and verification 
-	if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
+	if ((bind(sockfd, (const struct sockaddr *)servaddr, sizeof(*servaddr))) != 0) { 
 		ari_putstr_fd("socket bind failed...\n", 2); 
 		close(sockfd);
 		exit(1); 
@@ -218,6 +215,23 @@ int main(int argc, char **argv) {
 		close(sockfd);
 		exit(1); 
 	}
+    return sockfd;
+}
+
+int main(int argc, char **argv) {
+	struct sockaddr_in servaddr;
+	struct sockaddr_in cli; 
+
+	int sockfd;
+    int connfd;
+	int id = 0;
+    int len = sizeof(cli);
+
+	t_client client[CLIENT_NUM];
+
+    check_argc(argc);
+
+    sockfd = init_socket(argv[1], &servaddr);
 
 	int fd_max = sockfd;
 	int s_cnt;
