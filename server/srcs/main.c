@@ -82,7 +82,7 @@ char *str_join(char *buf, char *add)
     return (newbuf);
 }
 
-void init(t_client *client)
+void init_client(t_client *client)
 {
     bzero(client, sizeof(t_client) * CLIENT_NUM);
 }
@@ -153,37 +153,12 @@ void write_file(FILE *fp, FILE *fp2, t_client *client)
 int recv_client(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
     int len = recv(target_fd, &(client[target_fd]), sizeof(t_client), 0);
-    static const char *akey = "EMG@an#2345&12980!";
-    FILE *fp;
-    FILE *fp2;
 
     if (len > 0)
     {
-        // recv message
-        fprintf(stderr, "read = %s", client[target_fd].msg.jsonBody);
-        if (strcmp(client[target_fd].msg.header.param1Id, akey) == 0)
-        {
-            // sprintf 를 사용하여 파일에 저장, 파일이 존재하면 -숫자를 붙여서 저장
-            // 파일에 저장 내용 파싱
-            // 저장
-
-            char mac[60] = {0, }; // TODO: 나중에 맥 주소를 받는다
-
-            sprintf(mac, "%s", client[target_fd].msg.header.param2Id);
-            create_file(buf, &fp, &fp2);
-
-            //fprintf(fp, "%s", client[target_fd].msg.jsonBody);
-            write_file(fp, fp2, client);
-
-            fclose(fp);
-            fclose(fp2);
-            
-            set_client_send_msg(client, target_fd);
-        }
-        else
-        {
-            set_client_send_error_msg(client, target_fd);
-        }
+        // client message
+        fprintf(stderr, "client message : %s\n", (char *)client[target_fd]);
+        FD_SET(target_fd, w_fd_set);
     }
     else if (len == 0)
     {
@@ -230,7 +205,7 @@ void check_argc(int argc)
     }
 }
 
-void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
+void init_socket(int *sockfd, const int port, struct sockaddr_in *serv_addr)
 {
     if (!port)
     {
@@ -246,15 +221,15 @@ void init_socket(int *sockfd, const int port, struct sockaddr_in *servaddr)
         exit(-1);
     }
 
-    bzero(servaddr, sizeof(*servaddr));
+    bzero(serv_addr, sizeof(*serv_addr));
 
     // assign PORT
-    servaddr->sin_family = AF_INET;
-    servaddr->sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr->sin_port = htons(port);
+    serv_addr->sin_family = AF_INET;
+    serv_addr->sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr->sin_port = htons(port);
 
     // Binding newly created socket to given IP and verification
-    if ((bind(*sockfd, (const struct sockaddr *)servaddr, sizeof(*servaddr))) != 0)
+    if ((bind(*sockfd, (const struct sockaddr *)serv_addr, sizeof(*serv_addr))) != 0)
     {
         ari_print_error("bind error", __FILE__, __LINE__);
         close(*sockfd);
@@ -276,10 +251,9 @@ int main(int argc, char **argv)
     int fd_max = 0;
     int select_cnt;
 
-    struct sockaddr_in servaddr;
-    struct sockaddr_in cli;
+    struct sockaddr_in serv_addr;
+    struct sockaddr_in cli_addr;
     t_client client[CLIENT_NUM + 1];
-    char *client_ip[1025] = {0,};
 
     fd_set w_fd_set;
     fd_set r_fd_set;
@@ -287,11 +261,11 @@ int main(int argc, char **argv)
     fd_set r_copy_fd_set;
 
 
-    len = sizeof(cli);
+    len = sizeof(cli_addr);
 
     check_argc(argc);
-    init_socket(&sockfd, atoi(argv[1]), &servaddr);
-    init(client);
+    init_socket(&sockfd, atoi(argv[1]), &serv_addr);
+    init_client(client);
 
     fd_max = sockfd;
 
@@ -317,11 +291,9 @@ int main(int argc, char **argv)
                 else
                 {
                     // client 접속 시도
-                    connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
-                    // client에 ip 주소 삽입
+                    connfd = accept(sockfd, (struct sockaddr *)&cli_addr, (socklen_t *)&len);
                     if (connfd < 0)
                         continue;
-                    client_ip[connfd] = inet_ntoa(cli.sin_addr);
                     FD_SET(target_fd, &r_fd_set);
                     if (fd_max < connfd)
                         fd_max = connfd;
