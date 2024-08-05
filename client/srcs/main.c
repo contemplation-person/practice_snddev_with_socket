@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
     if (argc != 3)
     {
-        ari_title_print_fd(STDERR_FILENO, "인자가 너무 적습니다. ./snd_client [IP] [PORT]", COLOR_RED_CODE);
+        ari_title_print_fd(STDERR_FILENO, "인자가 다릅니다. ./snd_client [IP] [PORT]", COLOR_RED_CODE);
         return (-1);
     }
 
