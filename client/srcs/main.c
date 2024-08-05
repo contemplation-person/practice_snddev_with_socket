@@ -40,6 +40,7 @@ int is_valid_json(const char *json_string)
 /*
     edge case는 뭐가 있을까???????
  */
+/*
 typedef struct 
 {
     SocketHeader    header;
@@ -84,13 +85,14 @@ void create_message(SendMsgType *msg)
     make_socket_header(msg);
 }
 
+*/
 int main(int argc, char **argv) 
 {
     int                     sock = 0;
-    int                     msg_len = 0;
+    //int                     msg_len = 0;
     char                    msg[BUF_SIZE] = {0,};
     struct sockaddr_in      server_addr;
-    SendMsgType             msg;
+    //SendMsgType             msg;
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -111,13 +113,7 @@ int main(int argc, char **argv)
         return (-1);
     }
 
-    bzero(&msg, sizeof(SendMsgType));
-
-    // TODO: 나중에 지워
-    create_message(msg);
-    exit(0);
-
-    if (connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr)) == -1)
+    if (connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr)) != 0)
     {
         ari_print_error("connect error", __FILE__, __LINE__);
         return (-1);
@@ -125,19 +121,22 @@ int main(int argc, char **argv)
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
-    
+    bzero(&msg, sizeof(BUF_SIZE));
+    printf("sock fd = %d\n", sock);
 
-    while (1)
-    {
-        // bzero(&res_msg_type, sizeof(res_msg_type))
-        //read(STDIN_FILENO, msg, BUF_SIZE);
-        // 파싱
-        parsing_msg(&res_msg_type, msg, msg_len, argv[1], argv[2]);
-        // 저장
+    char *echo_test = "echo send test";
+    printf("write : %ld\n", write(sock, echo_test, strlen(echo_test)));
+    printf("이 데이터가 넘어감 %s\n", echo_test);
+    recv(sock, msg, BUF_SIZE, 0);
+    printf("recv : %s\n", msg);
+    // bzero(&res_msg_type, sizeof(res_msg_type))
+    //read(STDIN_FILENO, msg, BUF_SIZE);
+    // 파싱
+    // parsing_msg(&res_msg_type, msg, msg_len, argv[1], argv[2]);
+    // 저장
 
-        // 전송
-        write(STDOUT_FILENO, msg, BUF_SIZE);
-    }
+    // 전송
+    close(sock);
     
     return (0);
 
