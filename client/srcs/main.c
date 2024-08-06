@@ -1,6 +1,7 @@
 #include "libari.h"
 #include "rest_api_message.h"
 #include "medif_api.h"
+
 #include <json-c/json.h>
 
 #include <stdio.h>
@@ -11,6 +12,56 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+
+#define MAX_DEVICE_ID_LEN 18
+#define MAX_MDN_LEN 12
+#define MAX_IP_LEN 40
+#define MAX_USER_ID_LEN 23
+#define MAX_DEVICE_TYPE_LEN 11
+#define MAX_DEVICE_NAME_LEN 31
+#define MAX_SERIAL_NUMBER_LEN 31
+
+typedef struct 
+{
+    int auth_type;
+    int two_fa_use;
+    int device_suspend;
+    int id_type; 
+    int ip_pool_index;
+
+    char device_id[MAX_DEVICE_ID_LEN];
+    char mdn[MAX_MDN_LEN];
+    char ip[MAX_IP_LEN];
+    char user_id[MAX_USER_ID_LEN];
+    char device_type[MAX_DEVICE_TYPE_LEN];
+
+    char device_name[MAX_DEVICE_NAME_LEN];
+    char serial_number[MAX_SERIAL_NUMBER_LEN];
+} t_element;
+
+#define FORECH_ELEMENT(GENERATE_ELEMENT) \
+    GENERATE_ELEMENT(AUTH_TYPE) \
+    GENERATE_ELEMENT(TWO_FA_USE) \
+    GENERATE_ELEMENT(DEVICE_SUSPEND) \
+    GENERATE_ELEMENT(ID_TYPE) \
+    GENERATE_ELEMENT(IP_POOL_INDEX) \
+    GENERATE_ELEMENT(DEVICE_ID) \
+    GENERATE_ELEMENT(MDN) \
+    GENERATE_ELEMENT(IP) \
+    GENERATE_ELEMENT(USER_ID) \
+    GENERATE_ELEMENT(DEVICE_TYPE) \
+    GENERATE_ELEMENT(DEVICE_NAME) \
+    GENERATE_ELEMENT(SERIAL_NUMBER)
+
+
+#define GENERATE_ELEMENT_STRING(ELEMENT) #ELEMENT,
+#define GENERATE_ELEMENT_ENUM(ELEMENT) ELEMENT,
+
+typedef enum
+{
+    FORECH_ELEMENT(GENERATE_ELEMENT_ENUM)
+    MAX_ELEMENT,
+} t_element_str;
 
 int is_valid_json(const char *json_string) 
 {
@@ -25,64 +76,161 @@ int is_valid_json(const char *json_string)
     return 1;
 }
 
-/*
-    헤더에서 해당 키 값을 찾아서 뒷 내용 분석후 저장
-    그리고 그걸 서버에 날린다.
- */
-/*
-    바디에서 들어온 문자열을 모두 찍어주고,
-    그 데이터에서 akey를 확인, 틀리면 실패 rest api 날리고
-    파싱 데이터에 있는 것으로 파일을 생성 후
-    success 메시지 날리기.
- */
-/*
-    edge case는 뭐가 있을까???????
- */
+int make_rest_header(char *msg, int json_len)
+{
+    char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
+    RestLibHeadType *rest_header = (RestLibHeadType *)(msg + sizeof(SocketHeader));
+    static int tid = 0;
+    int total_len = 0;
 
-/*
-int make_json_body(SendMsgType *msg)
+    total_len = sprintf(rest_header->method, "%s", "POST");
+    total_len += sprintf(rest_header->tid, "%d", tid++);
+    total_len += sprintf(rest_header->param2Id, "%s", "127.0.0.1");
+    total_len += sprintf(rest_header->param1Id, "%s", "EMG@an#2345&12980!");
+    total_len += sprintf(rest_header->mtype, "%s", rest_str_arr[CREATE_SNDDEV_POLICY]);
+    total_len += sprintf(rest_header->uri, "%s/%s", "127.0.0.1:3000", "api/emg/policy/SndDev/create");
+    total_len += sprintf(rest_header->bodyLen, "%d", json_len);
+
+    if (tid > 99999999)
+        tid = 0;
+
+    return total_len;
+}
+
+json_object *make_object(t_element element)
+{
+    json_object *object_element = json_object_new_object();
+    char *element_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
+
+    if (element.auth_type)
+        json_object_object_add(object_element, element_str_arr[AUTH_TYPE], json_object_new_int(element.auth_type));
+    if (element.two_fa_use)
+        json_object_object_add(object_element, element_str_arr[TWO_FA_USE], json_object_new_int(element.two_fa_use));
+    if (element.device_suspend)
+        json_object_object_add(object_element, element_str_arr[DEVICE_SUSPEND], json_object_new_int(element.device_suspend));
+    if (element.id_type)
+        json_object_object_add(object_element, element_str_arr[ID_TYPE], json_object_new_int(element.id_type));
+    if (element.ip_pool_index)
+        json_object_object_add(object_element, element_str_arr[IP_POOL_INDEX], json_object_new_int(element.ip_pool_index));
+    if (element.device_id)
+        json_object_object_add(object_element, element_str_arr[DEVICE_ID], json_object_new_string(element.device_id));
+    if (element.mdn)
+        json_object_object_add(object_element, element_str_arr[MDN], json_object_new_string(element.mdn));
+    if (element.ip)
+        json_object_object_add(object_element, element_str_arr[IP], json_object_new_string(element.ip));
+    if (element.user_id)
+        json_object_object_add(object_element, element_str_arr[USER_ID], json_object_new_string(element.user_id));
+    if (element.device_type)
+        json_object_object_add(object_element, element_str_arr[DEVICE_TYPE], json_object_new_string(element.device_type));
+    if (element.device_name)
+        json_object_object_add(object_element, element_str_arr[DEVICE_NAME], json_object_new_string(element.device_name));
+    if (element.serial_number)
+        json_object_object_add(object_element, element_str_arr[SERIAL_NUMBER], json_object_new_string(element.serial_number));
+
+    return object_element;
+}
+
+void ari_json_object_print(json_object *json)
+{
+    const char *print_string = json_object_to_json_string_ext(json, JSON_C_TO_STRING_PRETTY);
+
+    ari_putendl_fd(print_string, 1);
+}
+
+int make_json_body(char *msg)
 {
     json_object *json_root = json_object_new_object();
+    t_element element;
+    int json_len;
 
     json_object_object_add(json_root, "LTEID", json_object_new_string("HANHWA"));
     json_object_object_add(json_root, "SLICE_ID", json_object_new_string("1"));
 
-    // json array
     json_object *json_array = json_object_new_array();
 
-    json_object_array_add(json_array, json_object_new_string("MAC F2-10-29-21-62-51")); // divice id
-    json_object_array_add(json_array, json_object_new_int(1));                          // id_type 
-    json_object_array_add(json_array, json_object_new_string("01029216251"));           // MDN
-    json_object_array_add(json_array, json_object_new_int(1));                          // IP PULL INDEX
-    json_object_array_add(json_array, json_object_new_string("10.5.0.142"));            // IP
-    json_object_array_add(json_array, json_object_new_int(1));                          // 추후 AUTH_TYPE이 AUTH_METHOD 인지 확인
-    json_object_array_add(json_array, json_object_new_string("SNDHELLOWORLD"));         // USER_ID
-    json_object_array_add(json_array, json_object_new_int(1));                          // 2FA_USE
-    json_object_array_add(json_array, json_object_new_int(0));                          // DEVICE_SUSPEND
-    json_object_array_add(json_array, json_object_new_string("PC"));                    // DEVICE_TYPE
-    json_object_array_add(json_array, json_object_new_string("MODEL GOOD"));            // DEVICE_NAME
-    json_object_array_add(json_array, json_object_new_string("207NZCG009587"));         // serial number
+    bzero(&element, sizeof(t_element));
+    element.auth_type = 1;
+    element.two_fa_use = 1;
+    element.device_suspend = 0;
+    element.id_type = 1;
+    element.ip_pool_index = 1;
 
-    json_object_object_add(json_root, "SLICE_ID", json_object_new_string("1"));
+    strcpy(element.device_id, "F2-10-29-21-62-51");
+    strcpy(element.mdn, "01029216251");
+    strcpy(element.ip, "10.5.0.142");
+    strcpy(element.user_id, "SNDHELLOWORLD");
+    strcpy(element.device_type, "PC");
+    strcpy(element.device_name, "MODEL GOOD");
+    strcpy(element.serial_number, "207NZCG009587");
 
+    json_object_array_add(json_array, make_object(element));
 
-    return (0);
+    bzero(&element, sizeof(t_element));
+    element.auth_type = 0;
+    element.two_fa_use = 0;
+    element.device_suspend = 1;
+    element.id_type = 1;
+    element.ip_pool_index = 1;
+
+    strcpy(element.device_id, "F2-11-11-11-11-11");
+    strcpy(element.mdn, "22222222222");
+    strcpy(element.ip, "11.15.0.111");
+    strcpy(element.user_id, "HIHI");
+    strcpy(element.device_type, "PC");
+    strcpy(element.device_name, "YEAH");
+    strcpy(element.serial_number, "333NZ3G003333");
+
+    json_object_array_add(json_array, make_object(element));
+    
+    json_object_object_add(json_root, "list", json_array);
+
+    ari_title_print_fd(STDOUT_FILENO, "client json object", COLOR_GREEN_CODE);
+    ari_json_object_print(json_root);
+
+    json_len = sprintf(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType), "%s", json_object_to_json_string(json_root));
+    json_object_put(json_root);
+
+    return json_len;
 }
 
-void create_message(SendMsgType *msg)
+int make_socket_header(char *msg, int json_len)
+{
+    SocketHeader *socket_header = (SocketHeader *)msg;
+
+    socket_header->bodyLen = htonl(sizeof(RestLibHeadType) + json_len);
+    socket_header->mType = htonl(DEF_MTYPE_CLI_REQ);
+
+    return sizeof(SocketHeader);
+}
+
+int make_msg(char *msg) 
 {
     int json_len = 0;
+    int total_len = 0;
 
-    make_json_body(msg);
-    make_rest_lib_header_type(msg);
-    make_socket_header(msg);
+    json_len = make_json_body(msg);
+
+    total_len += json_len;
+    total_len += make_rest_header(msg, json_len);
+    total_len += make_socket_header(msg, json_len);
+
+    return total_len;
 }
 
-*/
+void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
+{
+    int total_len = make_msg(msg);
+    int send_len = 0;
+    
+    do 
+    {
+        send_len += send(sockfd, msg, total_len, 0);
+    }while (send_len < total_len);
+}
+
 int main(int argc, char **argv) 
 {
     int                     sock = 0;
-    //int                     msg_len = 0;
     struct sockaddr_in      server_addr;
     char                    msg[BUFSIZ];
 
@@ -113,23 +261,15 @@ int main(int argc, char **argv)
     }
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
-
     bzero(&msg, sizeof(BUFSIZ));
-    printf("sock fd = %d\n", sock);
 
-    strcpy(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType), "hello world");
-    write(sock, msg, sizeof(BUFSIZ));
-    printf("이 데이터가 넘어감 %s\n", msg + sizeof(SocketHeader) + sizeof(RestLibHeadType));
+    send_socket(sock, msg, make_msg);
+    printf("이 데이터가 넘어감 \n\n%s\n", msg + sizeof(SocketHeader) + sizeof(RestLibHeadType));
+
+    // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
+    // TODO :json 출력
     recv(sock, msg, sizeof(BUFSIZ), 0);
-
-    printf("받은 msg : %s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
-    // bzero(&res_msg_type, sizeof(res_msg_type))
-    //read(STDIN_FILENO, msg, BUF_SIZE);
-    // 파싱
-    // parsing_msg(&res_msg_type, msg, msg_len, argv[1], argv[2]);
-    // 저장
-
-    // 전송
+    printf("받은 msg\n\n%s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
     close(sock);
     
     return (0);
