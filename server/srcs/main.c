@@ -15,37 +15,93 @@
 #include <arpa/inet.h>
 
 #define CLIENT_NUM  1025
+#define LEAVE_CLIENT 0
 
 typedef struct
 {
     char buf[BUFSIZ];
 } t_client;
 
-int recv_(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
+int recv_binary(int target_fd, char *binary, int binary_len)
 {
-    int start_pos = 0;
 	int recv_len = 0;
+	int goal_len = binary_len;
+	int len = 0;
 
-	do
+	while (recv_len < goal_len)
 	{
-		int recv_len = recv(target_fd, client + target_fd + start_pos, BUFSIZ, 0);
-		if (recv_len == 0)
+		len = recv(target_fd, binary + recv_len, goal_len - recv_len, 0);
+		if (len == 0)
 		{
-			// client leave
-			bzero(client + target_fd, sizeof(t_client));
-			close(target_fd);
-			FD_CLR(target_fd, w_fd_set);
-			FD_CLR(target_fd, r_fd_set);
-			return 1;
+			return 0;
 		}
-		start_pos += recv_len;
-	} while (recv_len == -1);
-
-	FD_SET(target_fd, w_fd_set);
+		recv_len += len;
+	}
+	// TODO: len이 -1인 상황 생각해볼 것,
 	return 1;
 }
 
-void send_(t_client *client, int target_fd, fd_set *w_fd_set)
+int check_akey(char *rest_msg)
+{
+	static char *akey = "EMG@an#2345&12980!";
+
+	if (strncmp(akey, rest_msg, strlen(akey) + 1))
+	{
+		return 0;
+	}
+	return 1;
+}
+
+int check_json(char *json)
+{
+	struct json_object *root = json_tokener_parse(json);
+    if (root == NULL) 
+    {
+        return 0;
+    }
+
+    json_object_put(root);
+	return 1;
+}
+
+// TODO: 여기부터 다시 시작
+int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
+{
+	SocketHeader *sockh = (SocketHeader *)(client + target_fd); 
+	RestMsgType *rest_msg = (RestMsgType *)(sockh + sizeof(SocketHeader));
+
+	if (recv_binary(target_fd, (char *)sockh, sizeof(SocketHeader)) == LEAVE_CLIENT || \
+		recv_binary(target_fd, (char *)rest_msg, ntohl(sockh->bodyLen)) == LEAVE_CLIENT)
+	{
+		bzero(client + target_fd, sizeof(t_client));
+		close(target_fd);
+		FD_CLR(target_fd, w_fd_set);
+		FD_CLR(target_fd, r_fd_set);
+		return 1;
+	}
+
+	FD_SET(target_fd, w_fd_set);
+
+	if (!check_akey(rest_msg->header.param1Id))
+	{
+		// akey 값이 일치하지 않음 response
+		return 1;
+	}
+	if (!check_json(rest_msg->jsonBody))
+	{
+		//json 값이 유효하지 않음 response
+		return 1;
+	}
+
+	printf("-jsonBody- %s\n", rest_msg->jsonBody);
+	exit(1);
+	// create file
+	// success response msg
+
+
+}
+
+void send_msg(t_client *client, int target_fd, fd_set *w_fd_set)
 {
     int send_len = 0;
     int start_pos = 0;
@@ -160,35 +216,24 @@ int main(int argc, char **argv) {
 			{
 				if (target_fd != sockfd)
 				{
-					printf("in target_fd : %d\n", target_fd);
-
-					if (!recv_(client, target_fd, &r_fd_set, &w_fd_set))
-					{
-						for (int i = 3; i <= fd_max; i++)
-						{
-							if (client[i].buf)
-								close(target_fd);
-						}
-                        close(sockfd);
-                        fprintf(stderr, "recv Error: %s\n", strerror(errno));
-                        exit(EXIT_FAILURE);
-					}
-					fprintf(stderr, "target fd : %d\n", target_fd);
+					recv_msg(client, target_fd, &r_fd_set, &w_fd_set);
 				}
 				else
 				{
 					connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
 					if (strncmp(inet_ntoa(cli.sin_addr), allowed_ip, strlen(allowed_ip)))
 					{
-						ari_putstr_fd("not allowed ip\n", 2);
+						ari_title_print_fd(STDERR_FILENO, "Not allowed ip", COLOR_RED_CODE);
 						close(connfd);
 						continue;
 					}
-					if (connfd < 0) 
+					if (connfd < 0)
+					{
 						continue;
+					}
                     FD_SET(connfd, &r_fd_set);
 					set_non_blocking(connfd);
-					fprintf(stderr, "connfd : %d\n", connfd);
+					//fprintf(stderr, "connfd : %d\n", connfd);
                     if (fd_max < connfd)
 						fd_max = connfd;
 				}
@@ -196,7 +241,7 @@ int main(int argc, char **argv) {
             }
             else if (FD_ISSET(target_fd, &w_copy_fd_set))
 			{
-				send_(client, target_fd, &w_fd_set);
+				send_msg(client, target_fd, &w_fd_set);
                 select_cnt--;
             }
         }
