@@ -87,7 +87,6 @@ int init_socket(char *port, struct sockaddr_in *servaddr)
     int sockfd;
     int true = 1;
 
-	// socket create and verification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
 	if (sockfd == -1) { 
 		ari_putstr_fd("socket creation failed...\n", 2); 
@@ -98,12 +97,10 @@ int init_socket(char *port, struct sockaddr_in *servaddr)
 
 	bzero(servaddr, sizeof(*servaddr)); 
 
-	// assign IP, PORT 
 	servaddr->sin_family = AF_INET; 
-	servaddr->sin_addr.s_addr = htonl(INADDR_ANY); //127.0.0.1
+	servaddr->sin_addr.s_addr = htonl(INADDR_ANY);
 	servaddr->sin_port = htons(atoi(port)); 
 
-	// Binding newly created socket to given IP and verification 
 	if ((bind(sockfd, (const struct sockaddr *)servaddr, sizeof(*servaddr))) != 0) { 
 		fprintf(stderr, "bind Error: %s\n", strerror(errno));
 		close(sockfd);
