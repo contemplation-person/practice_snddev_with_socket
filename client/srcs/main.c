@@ -264,6 +264,7 @@ int main(int argc, char **argv)
     bzero(&msg, sizeof(BUFSIZ));
 
     send_socket(sock, msg, make_msg);
+    // TODO: 여기 체크해볼 필요가 있음.헤더가 잘 들어갔는지, 바디가 잘 들어갔는지
     printf("이 데이터가 넘어감 \n\n%s\n", msg + sizeof(SocketHeader) + sizeof(RestLibHeadType));
 
     // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
