@@ -28,6 +28,7 @@ int recv_binary(int target_fd, char *binary, int binary_len)
 	int goal_len = binary_len;
 	int len = 0;
 
+	// TODO: len이 -1인 상황 생각해볼 것,
 	while (recv_len < goal_len)
 	{
 		len = recv(target_fd, binary + recv_len, goal_len - recv_len, 0);
@@ -37,7 +38,7 @@ int recv_binary(int target_fd, char *binary, int binary_len)
 		}
 		recv_len += len;
 	}
-	// TODO: len이 -1인 상황 생각해볼 것,
+
 	return 1;
 }
 
@@ -64,14 +65,13 @@ int check_json(char *json)
 	return 1;
 }
 
-// TODO: 여기부터 다시 시작
 int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
 	SocketHeader *sockh = (SocketHeader *)(client + target_fd); 
 	RestMsgType *rest_msg = (RestMsgType *)(sockh + sizeof(SocketHeader));
 
 	if (recv_binary(target_fd, (char *)sockh, sizeof(SocketHeader)) == LEAVE_CLIENT || \
-		recv_binary(target_fd, (char *)rest_msg, ntohl(sockh->bodyLen)) == LEAVE_CLIENT)
+		recv_binary(target_fd, (char *)rest_msg, htonl(sockh->bodyLen)) == LEAVE_CLIENT)
 	{
 		bzero(client + target_fd, sizeof(t_client));
 		close(target_fd);
@@ -87,6 +87,7 @@ int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set
 		// akey 값이 일치하지 않음 response
 		return 1;
 	}
+
 	if (!check_json(rest_msg->jsonBody))
 	{
 		//json 값이 유효하지 않음 response
@@ -233,7 +234,8 @@ int main(int argc, char **argv) {
 					}
                     FD_SET(connfd, &r_fd_set);
 					set_non_blocking(connfd);
-					//fprintf(stderr, "connfd : %d\n", connfd);
+					ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
+					ari_title_print_fd(STDOUT_FILENO, inet_ntoa(cli.sin_addr), COLOR_GREEN_CODE);
                     if (fd_max < connfd)
 						fd_max = connfd;
 				}
