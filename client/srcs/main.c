@@ -81,20 +81,19 @@ int make_rest_header(char *msg, int json_len)
     char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
     RestLibHeadType *rest_header = (RestLibHeadType *)(msg + sizeof(SocketHeader));
     static int tid = 0;
-    int total_len = 0;
 
-    total_len = sprintf(rest_header->method, "%s", "POST");
-    total_len += sprintf(rest_header->tid, "%d", tid++);
-    total_len += sprintf(rest_header->param2Id, "%s", "127.0.0.1");
-    total_len += sprintf(rest_header->param1Id, "%s", "EMG@an#2345&12980!");
-    total_len += sprintf(rest_header->mtype, "%s", rest_str_arr[CREATE_SNDDEV_POLICY]);
-    total_len += sprintf(rest_header->uri, "%s/%s", "127.0.0.1:3000", "api/emg/policy/SndDev/create");
-    total_len += sprintf(rest_header->bodyLen, "%d", json_len);
+    sprintf(rest_header->method, "%s", "POST");
+    sprintf(rest_header->tid, "%d", tid++);
+    sprintf(rest_header->param2Id, "%s", "127.0.0.1");
+    sprintf(rest_header->param1Id, "%s", "EMG@an#2345&12980!");
+    sprintf(rest_header->mtype, "%s", rest_str_arr[CREATE_SNDDEV_POLICY]);
+    sprintf(rest_header->uri, "%s/%s", "127.0.0.1:3000", "api/emg/policy/SndDev/create");
+    sprintf(rest_header->bodyLen, "%d", json_len);
 
     if (tid > 99999999)
         tid = 0;
 
-    return total_len;
+    return sizeof(RestLibHeadType);
 }
 
 json_object *make_object(t_element element)
@@ -193,11 +192,11 @@ int make_json_body(char *msg)
     return json_len;
 }
 
-int make_socket_header(char *msg, int json_len)
+int make_socket_header(char *msg, int bodyLen)
 {
     SocketHeader *socket_header = (SocketHeader *)msg;
 
-    socket_header->bodyLen = htonl(sizeof(RestLibHeadType) + json_len);
+    socket_header->bodyLen = htonl(bodyLen);
     socket_header->mType = htonl(DEF_MTYPE_CLI_REQ);
 
     return sizeof(SocketHeader);
@@ -205,16 +204,9 @@ int make_socket_header(char *msg, int json_len)
 
 int make_msg(char *msg) 
 {
-    int json_len = 0;
-    int total_len = 0;
+    int json_len = make_json_body(msg);
 
-    json_len = make_json_body(msg);
-
-    total_len += json_len;
-    total_len += make_rest_header(msg, json_len);
-    total_len += make_socket_header(msg, json_len);
-
-    return total_len;
+    return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
 void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
@@ -226,6 +218,22 @@ void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
     {
         send_len += send(sockfd, msg, total_len, 0);
     }while (send_len < total_len);
+
+    SocketHeader *socket_header = (SocketHeader *)msg;
+    RestMsgType *rest_header = (RestMsgType *)(msg + sizeof(SocketHeader));
+
+    printf("\n- total_len : %d\n", total_len);
+    printf("- send_len : %d\n", send_len);
+    printf("- socket_header : %ld\n", sizeof(socket_header));
+    printf("- socket_header->bodyLen : %d\n", ntohl(socket_header->bodyLen));
+    printf("- restmsgType : %ld\n", sizeof(rest_header));
+    printf("- RestLibHeadType + jsobodylen : %ld\n", sizeof(RestLibHeadType) +strlen(rest_header->jsonBody));
+    printf("- jsonbody + sizeof(restmsg header) : %ld\n", strlen(rest_header->jsonBody));
+
+    printf("- 이 데이터가 넘어감 total_len : %d\n", total_len);
+    printf("\n- bodyLen : %d\n", ntohl(socket_header->bodyLen));
+    printf("jsonBody : %s\n", rest_header->jsonBody);
+
 }
 
 int main(int argc, char **argv) 
@@ -233,7 +241,6 @@ int main(int argc, char **argv)
     int                     sock = 0;
     struct sockaddr_in      server_addr;
     char                    msg[BUFSIZ];
-
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -265,12 +272,11 @@ int main(int argc, char **argv)
 
     send_socket(sock, msg, make_msg);
     // TODO: 여기 체크해볼 필요가 있음.헤더가 잘 들어갔는지, 바디가 잘 들어갔는지
-    printf("이 데이터가 넘어감 \n\n%s\n", msg + sizeof(SocketHeader) + sizeof(RestLibHeadType));
 
     // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
     // TODO :json 출력
     recv(sock, msg, sizeof(BUFSIZ), 0);
-    printf("받은 msg\n\n%s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
+    printf("\n받은 msg\n\n%s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
     close(sock);
     
     return (0);
