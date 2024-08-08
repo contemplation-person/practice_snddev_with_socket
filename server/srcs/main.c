@@ -45,7 +45,6 @@ typedef struct s_create_snddev_policy_list
 
 typedef struct s_csp_list
 {
-	int list_len;
 	create_snddev_policy_list *create_snddev_policy_start_list;
 	create_snddev_policy_list *create_snddev_policy_end_list;
 } csp_list_header;
@@ -54,6 +53,7 @@ typedef struct
 {
 	char lte[20];
 	char slice_id[4];
+	//TODO : 사실상 이게 헤더, csp_list_header 랑 합쳐야함, 그러나 리펙토링보다는 완성이 먼저...
 	csp_list_header csp_list;
 } create_snddev_policy;
 
@@ -92,18 +92,6 @@ int same_as_akey(RestMsgType *rest_msg)
 	}
 	return 1;
 }
-
-// TODO: craete_snd_file
-/*
-int create_snd_file(char *json)
-{
-	FILE *fp = fopen("snd_file", "w");
-	while (!fp)
-	{
-		fp
-	}
-}
-*/
 
 int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
 {
@@ -244,7 +232,6 @@ int new_create_snddev_policy_list(csp_list_header *snddev_policy, struct json_ob
 		snddev_policy->create_snddev_policy_end_list->next = new_list;
 		snddev_policy->create_snddev_policy_end_list = new_list;
 	}
-	snddev_policy->list_len++;
 
 	return 1;
 }
@@ -308,7 +295,11 @@ int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy *snddev_policy)
 	}
 
 	parse_json_header(parsed_json, snddev_policy);
-	parse_json_list(parsed_json, &(snddev_policy->csp_list));
+	if (!parse_json_list(parsed_json, &(snddev_policy->csp_list)))
+	{
+		json_object_put(parsed_json);
+		return 0;
+	}
 
 	ari_title_print("parsed_json", COLOR_GREEN_CODE);
 	ari_json_object_print(parsed_json);
@@ -319,6 +310,43 @@ int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy *snddev_policy)
 
 int create_snd_file(create_snddev_policy snddev_policy)
 {
+	char file_name[100] = {0};
+	int file_num = 0;
+	create_snddev_policy_list *csp_list = snddev_policy.csp_list.create_snddev_policy_start_list;
+	FILE *fp;
+
+	system("mkdir -p file_test");
+	while (csp_list)
+	{
+		sprintf(file_name, "file_test/%s_num_%d", csp_list->device_id, file_num++);
+		if (!access(file_name, F_OK))
+		{
+			continue;
+		}
+		fp = fopen(file_name, "w");
+		if (!fp)
+		{
+			return 0;
+		}
+		fprintf(fp, "%-15s: %s\n", "DEVICE_ID", csp_list->device_id);
+		fprintf(fp, "%-15s: %s\n", "LTE_ID", snddev_policy.lte);
+		fprintf(fp, "%-15s: %s\n", "SLICE_ID", snddev_policy.slice_id);
+		fprintf(fp, "%-15s: %d\n", "AUTH_TYPE", csp_list->auth_type);
+		fprintf(fp, "%-15s: %d\n", "TWO_FA_USE", csp_list->two_fa_use);
+		fprintf(fp, "%-15s: %d\n", "DEVICE_SUSPEND", csp_list->device_suspend);
+		fprintf(fp, "%-15s: %d\n", "ID_TYPE", csp_list->id_type);
+		fprintf(fp, "%-15s: %d\n", "IP_POOL_INDEX", csp_list->ip_pool_index);
+		fprintf(fp, "%-15s: %s\n", "MDN", csp_list->mdn);
+		fprintf(fp, "%-15s: %s\n", "IP", csp_list->ip);
+		fprintf(fp, "%-15s: %s\n", "USER_ID", csp_list->user_id);
+		fprintf(fp, "%-15s: %s\n", "DEVICE_TYPE", csp_list->device_type);
+		fprintf(fp, "%-15s: %s\n", "DEVICE_NAME", csp_list->device_name);
+		fprintf(fp, "%-15s: %s\n", "SERIAL_NUMBER", csp_list->serial_number);
+		fclose(fp);
+		csp_list = csp_list->next;
+	}
+
+	return 1;
 }
 
 int main(int argc, char **argv)
@@ -409,10 +437,10 @@ int main(int argc, char **argv)
 				}
 				bzero(client + target_fd, sizeof(t_client));
 				FD_CLR(target_fd, &w_fd_set);
-				//TODO : clear_csp_list(snddev_policy[target_fd].csp_list);
 				
 				select_cnt--;
 			}
+			//TODO : clear_csp_list(snddev_policy[target_fd].csp_list);
 		}
 	}
 }
