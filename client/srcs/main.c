@@ -214,25 +214,11 @@ void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
     int total_len = make_msg(msg);
     int send_len = 0;
     
+    // TODO : 인자가 -1일 때 처리
     do 
     {
         send_len += send(sockfd, msg, total_len, 0);
     }while (send_len < total_len);
-
-    SocketHeader *socket_header = (SocketHeader *)msg;
-    RestMsgType *rest_header = (RestMsgType *)(msg + sizeof(SocketHeader));
-
-    printf("\n- total_len : %d\n", total_len);
-    printf("- send_len : %d\n", send_len);
-    printf("- socket_header : %ld\n", sizeof(socket_header));
-    printf("- socket_header->bodyLen : %d\n", ntohl(socket_header->bodyLen));
-    printf("- restmsgType : %ld\n", sizeof(rest_header));
-    printf("- RestLibHeadType + jsobodylen : %ld\n", sizeof(RestLibHeadType) +strlen(rest_header->jsonBody));
-    printf("- jsonbody + sizeof(restmsg header) : %ld\n", strlen(rest_header->jsonBody));
-
-    printf("- 이 데이터가 넘어감 total_len : %d\n", total_len);
-    printf("\n- bodyLen : %d\n", ntohl(socket_header->bodyLen));
-    printf("jsonBody : %s\n", rest_header->jsonBody);
 
 }
 
@@ -271,8 +257,6 @@ int main(int argc, char **argv)
     bzero(&msg, sizeof(BUFSIZ));
 
     send_socket(sock, msg, make_msg);
-    // TODO: 여기 체크해볼 필요가 있음.헤더가 잘 들어갔는지, 바디가 잘 들어갔는지
-
     // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
     // TODO :json 출력
     recv(sock, msg, sizeof(BUFSIZ), 0);
