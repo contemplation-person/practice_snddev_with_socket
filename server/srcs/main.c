@@ -24,6 +24,13 @@
 #define MAX_DEVICE_NAME_LEN 31
 #define MAX_SERIAL_NUMBER_LEN 31
 
+typedef enum
+{
+	RESPONSE_SUCCESS = 1,
+	RESPONSE_ERROR_AKEY,
+	RESPONSE_ERROR_JSON,
+} Res_code_type;
+
 typedef struct s_create_snddev_policy_list
 {
 	int auth_type;
@@ -41,15 +48,17 @@ typedef struct s_create_snddev_policy_list
 	char device_name[MAX_DEVICE_NAME_LEN];
 	char serial_number[MAX_SERIAL_NUMBER_LEN];
 	struct s_create_snddev_policy_list *next;
-} create_snddev_policy_list;
+} Create_snddev_policy_list;
 
 typedef struct
 {
 	char lte[20];
 	char slice_id[4];
-	create_snddev_policy_list *create_snddev_policy_start_list;
-	create_snddev_policy_list *create_snddev_policy_end_list;
-} create_snddev_policy_header;
+	char real_ip[39];
+
+	Create_snddev_policy_list *create_snddev_policy_start_list;
+	Create_snddev_policy_list *create_snddev_policy_end_list;
+} Create_snddev_policy_header;
 
 typedef struct
 {
@@ -87,7 +96,7 @@ int same_as_akey(RestMsgType *rest_msg)
 	return 1;
 }
 
-int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set)
+int recv_msg(t_client *client, int target_fd)
 {
 	SocketHeader *sockh = (SocketHeader *)(client + target_fd);
 	RestMsgType *rest_msg = (RestMsgType *)(sockh + sizeof(SocketHeader));
@@ -96,11 +105,7 @@ int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set
 	if (recv_binary(target_fd, (char *)sockh, sizeof(SocketHeader)) == LEAVE_CLIENT ||
 		recv_binary(target_fd, (char *)rest_msg, htonl(sockh->bodyLen)) == LEAVE_CLIENT)
 	{
-		bzero(client + target_fd, sizeof(t_client));
-		close(target_fd);
-		FD_CLR(target_fd, w_fd_set);
-		FD_CLR(target_fd, r_fd_set);
-		return 0;
+		return LEAVE_CLIENT;
 	}
 
 	memmove(client + target_fd, sockh, sizeof(SocketHeader));
@@ -111,7 +116,6 @@ int recv_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set
 
 int send_msg(t_client *client, int target_fd)
 {
-	// TODO : error response
 	int send_len = 0;
 	int start_pos = 0;
 
@@ -192,9 +196,9 @@ int init_socket(char *port, struct sockaddr_in *servaddr)
 	return sockfd;
 }
 
-int new_create_snddev_policy_list(create_snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj)
+int new_create_snddev_policy_list(Create_snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj)
 {
-	create_snddev_policy_list *new_list = (create_snddev_policy_list *)malloc(sizeof(create_snddev_policy_list));
+	Create_snddev_policy_list *new_list = (Create_snddev_policy_list *)malloc(sizeof(Create_snddev_policy_list));
 	if (!new_list)
 	{
 		fprintf(stderr, "malloc error: %s\n", strerror(errno));
@@ -230,7 +234,7 @@ int new_create_snddev_policy_list(create_snddev_policy_header *snddev_policy_hea
 	return 1;
 }
 
-int parse_json_list(struct json_object *parsed_json, create_snddev_policy_header *snddev_policy_header)
+int parse_json_list(struct json_object *parsed_json, Create_snddev_policy_header *snddev_policy_header)
 {
 	struct json_object *csp_list;
 	struct json_object *csp_list_obj;
@@ -263,7 +267,7 @@ void ari_json_object_print(json_object *json)
 	ari_putendl_fd(print_string, 1);
 }
 
-void parse_json_header(struct json_object *parsed_json, create_snddev_policy_header *snddev_policy)
+void parse_json_header(struct json_object *parsed_json, Create_snddev_policy_header *snddev_policy)
 {
 	struct json_object *lte_id;
 	struct json_object *slice_id;
@@ -278,7 +282,7 @@ void parse_json_header(struct json_object *parsed_json, create_snddev_policy_hea
 	}
 }
 
-int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy_header *snddev_policy)
+int parse_rest_msg(RestMsgType *rest_msg, Create_snddev_policy_header *snddev_policy)
 {
 	struct json_object *parsed_json;
 
@@ -302,11 +306,11 @@ int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy_header *snddev_po
 	return 1;
 }
 
-int create_snd_file(create_snddev_policy_header snddev_policy)
+int create_snd_file(Create_snddev_policy_header snddev_policy)
 {
 	char file_name[100] = {0};
 	int file_num = 0;
-	create_snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
+	Create_snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
 	FILE *fp;
 
 	system("mkdir -p file_test");
@@ -343,10 +347,10 @@ int create_snd_file(create_snddev_policy_header snddev_policy)
 	return 1;
 }
 
-void clear_csp_list(create_snddev_policy_header *snddev_policy_header)
+void clear_csp_list(Create_snddev_policy_header *snddev_policy_header)
 {
-	create_snddev_policy_list *csp_list = snddev_policy_header->create_snddev_policy_start_list;
-	create_snddev_policy_list *next;
+	Create_snddev_policy_list *csp_list = snddev_policy_header->create_snddev_policy_start_list;
+	Create_snddev_policy_list *next;
 
 	while (csp_list)
 	{
@@ -354,11 +358,31 @@ void clear_csp_list(create_snddev_policy_header *snddev_policy_header)
 		free(csp_list);
 		csp_list = next;
 	}
-	snddev_policy_header->create_snddev_policy_start_list = NULL;
-	snddev_policy_header->create_snddev_policy_end_list = NULL;
+	bzero(snddev_policy_header, sizeof(Create_snddev_policy_header));
+}
 
-	snddev_policy_header->lte[0] = 0;
-	snddev_policy_header->slice_id[0] = 0;
+int make_server_response(SocketHeader *socketHeader, RestMsgType *restMsgType, Res_code_type res_code)
+{
+	
+	socketHeader->mType = DEF_MTYPE_SVR_RES;
+
+
+	switch (res_code)
+	{
+	case RESPONSE_SUCCESS:
+		memmove(restMsgType->header.resCode, "200", 4);
+		break;
+		
+	case RESPONSE_ERROR_AKEY:
+		memmove(restMsgType->header.resCode, "401", 4);
+		break;
+
+	case RESPONSE_ERROR_JSON:
+		memmove(restMsgType->header.resCode, "400", 4);
+		break;
+	}
+
+	return res_code;
 }
 
 int main(int argc, char **argv)
@@ -375,7 +399,7 @@ int main(int argc, char **argv)
 	char *allowed_ip = "127.0.0.1";
 
 	t_client client[CLIENT_NUM] = { 0, };
-	create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = { 0, };
+	Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = { 0, };
 
 	check_argc(argc);
 
@@ -391,6 +415,7 @@ int main(int argc, char **argv)
 	FD_SET(sockfd, &r_fd_set);
 
 	fd_max = sockfd;
+
 	while (42)
 	{
 		w_copy_fd_set = w_fd_set;
@@ -402,26 +427,35 @@ int main(int argc, char **argv)
 			{
 				if (target_fd != sockfd)
 				{
-					if (recv_msg(client, target_fd, &r_fd_set, &w_fd_set) == -1)
+					if (recv_msg(client, target_fd) == LEAVE_CLIENT)
 					{
-						// TODO: error recv response
+						bzero(client + target_fd, sizeof(t_client));
+						close(target_fd);
+						FD_CLR(target_fd, &w_fd_set);
+						FD_CLR(target_fd, &r_fd_set);
+						continue;
 					}
+					FD_SET(target_fd, &w_fd_set);
 					if (!same_as_akey((RestMsgType *)(client + target_fd + sizeof(SocketHeader))))
 					{
-						// TODO :akey 값이 일치하지 않음 response
+						make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_ERROR_AKEY);
+						continue;
 					}
 					if (!parse_rest_msg((RestMsgType *)(client + target_fd + sizeof(SocketHeader)), &(snddev_policy_header[target_fd])))
 					{
-						// TODO : error response
+						make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_ERROR_JSON);
+						continue;
 					}
 					create_snd_file(snddev_policy_header[target_fd]);
-					// TODO : success response msg
-					FD_SET(target_fd, &w_fd_set);
+					make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_SUCCESS);
 				}
 				else
 				{
 					connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
-					if (strncmp(inet_ntoa(cli.sin_addr), allowed_ip, strlen(allowed_ip)))
+					strcpy(snddev_policy_header[connfd].real_ip, inet_ntoa(cli.sin_addr));
+					ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
+					ari_title_print_fd(STDOUT_FILENO, snddev_policy_header[connfd].real_ip, COLOR_GREEN_CODE);
+					if (strncmp(snddev_policy_header[connfd].real_ip, allowed_ip, strlen(allowed_ip)))
 					{
 						ari_title_print_fd(STDERR_FILENO, "Not allowed ip", COLOR_RED_CODE);
 						close(connfd);
@@ -433,8 +467,6 @@ int main(int argc, char **argv)
 					}
 					FD_SET(connfd, &r_fd_set);
 					set_non_blocking(connfd);
-					ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
-					ari_title_print_fd(STDOUT_FILENO, inet_ntoa(cli.sin_addr), COLOR_GREEN_CODE);
 					if (fd_max < connfd)
 						fd_max = connfd;
 				}
