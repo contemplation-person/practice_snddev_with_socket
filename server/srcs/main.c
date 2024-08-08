@@ -43,19 +43,13 @@ typedef struct s_create_snddev_policy_list
 	struct s_create_snddev_policy_list *next;
 } create_snddev_policy_list;
 
-typedef struct s_csp_list
-{
-	create_snddev_policy_list *create_snddev_policy_start_list;
-	create_snddev_policy_list *create_snddev_policy_end_list;
-} csp_list_header;
-
 typedef struct
 {
 	char lte[20];
 	char slice_id[4];
-	//TODO : 사실상 이게 헤더, csp_list_header 랑 합쳐야함, 그러나 리펙토링보다는 완성이 먼저...
-	csp_list_header csp_list;
-} create_snddev_policy;
+	create_snddev_policy_list *create_snddev_policy_start_list;
+	create_snddev_policy_list *create_snddev_policy_end_list;
+} create_snddev_policy_header;
 
 typedef struct
 {
@@ -198,7 +192,7 @@ int init_socket(char *port, struct sockaddr_in *servaddr)
 	return sockfd;
 }
 
-int new_create_snddev_policy_list(csp_list_header *snddev_policy, struct json_object *csp_list_obj)
+int new_create_snddev_policy_list(create_snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj)
 {
 	create_snddev_policy_list *new_list = (create_snddev_policy_list *)malloc(sizeof(create_snddev_policy_list));
 	if (!new_list)
@@ -222,21 +216,21 @@ int new_create_snddev_policy_list(csp_list_header *snddev_policy, struct json_ob
 	strcpy(new_list->serial_number, json_object_get_string(json_object_object_get(csp_list_obj, "SERIAL_NUMBER")));
 	new_list->next = NULL;
 
-	if (snddev_policy->create_snddev_policy_start_list == NULL)
+	if (snddev_policy_header->create_snddev_policy_start_list == NULL)
 	{
-		snddev_policy->create_snddev_policy_start_list = new_list;
-		snddev_policy->create_snddev_policy_end_list = new_list;
+		snddev_policy_header->create_snddev_policy_start_list = new_list;
+		snddev_policy_header->create_snddev_policy_end_list = new_list;
 	}
 	else
 	{
-		snddev_policy->create_snddev_policy_end_list->next = new_list;
-		snddev_policy->create_snddev_policy_end_list = new_list;
+		snddev_policy_header->create_snddev_policy_end_list->next = new_list;
+		snddev_policy_header->create_snddev_policy_end_list = new_list;
 	}
 
 	return 1;
 }
 
-int parse_json_list(struct json_object *parsed_json, csp_list_header *snddev_policy)
+int parse_json_list(struct json_object *parsed_json, create_snddev_policy_header *snddev_policy_header)
 {
 	struct json_object *csp_list;
 	struct json_object *csp_list_obj;
@@ -252,7 +246,7 @@ int parse_json_list(struct json_object *parsed_json, csp_list_header *snddev_pol
 	for (int idx = 0; idx < list_len; idx++)
 	{
 		csp_list_obj = json_object_array_get_idx(csp_list, idx);
-		if (!new_create_snddev_policy_list(snddev_policy, csp_list_obj))
+		if (!new_create_snddev_policy_list(snddev_policy_header, csp_list_obj))
 		{
 			fprintf(stderr, "new_create_snddev_policy_list error: %s\n", strerror(errno));
 			return 0;
@@ -269,7 +263,7 @@ void ari_json_object_print(json_object *json)
 	ari_putendl_fd(print_string, 1);
 }
 
-void parse_json_header(struct json_object *parsed_json, create_snddev_policy *snddev_policy)
+void parse_json_header(struct json_object *parsed_json, create_snddev_policy_header *snddev_policy)
 {
 	struct json_object *lte_id;
 	struct json_object *slice_id;
@@ -284,7 +278,7 @@ void parse_json_header(struct json_object *parsed_json, create_snddev_policy *sn
 	}
 }
 
-int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy *snddev_policy)
+int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy_header *snddev_policy)
 {
 	struct json_object *parsed_json;
 
@@ -295,7 +289,7 @@ int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy *snddev_policy)
 	}
 
 	parse_json_header(parsed_json, snddev_policy);
-	if (!parse_json_list(parsed_json, &(snddev_policy->csp_list)))
+	if (!parse_json_list(parsed_json, snddev_policy))
 	{
 		json_object_put(parsed_json);
 		return 0;
@@ -308,11 +302,11 @@ int parse_rest_msg(RestMsgType *rest_msg, create_snddev_policy *snddev_policy)
 	return 1;
 }
 
-int create_snd_file(create_snddev_policy snddev_policy)
+int create_snd_file(create_snddev_policy_header snddev_policy)
 {
 	char file_name[100] = {0};
 	int file_num = 0;
-	create_snddev_policy_list *csp_list = snddev_policy.csp_list.create_snddev_policy_start_list;
+	create_snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
 	FILE *fp;
 
 	system("mkdir -p file_test");
@@ -349,6 +343,24 @@ int create_snd_file(create_snddev_policy snddev_policy)
 	return 1;
 }
 
+void clear_csp_list(create_snddev_policy_header *snddev_policy_header)
+{
+	create_snddev_policy_list *csp_list = snddev_policy_header->create_snddev_policy_start_list;
+	create_snddev_policy_list *next;
+
+	while (csp_list)
+	{
+		next = csp_list->next;
+		free(csp_list);
+		csp_list = next;
+	}
+	snddev_policy_header->create_snddev_policy_start_list = NULL;
+	snddev_policy_header->create_snddev_policy_end_list = NULL;
+
+	snddev_policy_header->lte[0] = 0;
+	snddev_policy_header->slice_id[0] = 0;
+}
+
 int main(int argc, char **argv)
 {
 	struct sockaddr_in servaddr;
@@ -363,7 +375,7 @@ int main(int argc, char **argv)
 	char *allowed_ip = "127.0.0.1";
 
 	t_client client[CLIENT_NUM] = { 0, };
-	create_snddev_policy snddev_policy[CLIENT_NUM] = { 0, };
+	create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = { 0, };
 
 	check_argc(argc);
 
@@ -398,11 +410,11 @@ int main(int argc, char **argv)
 					{
 						// TODO :akey 값이 일치하지 않음 response
 					}
-					if (!parse_rest_msg((RestMsgType *)(client + target_fd + sizeof(SocketHeader)), &(snddev_policy[target_fd])))
+					if (!parse_rest_msg((RestMsgType *)(client + target_fd + sizeof(SocketHeader)), &(snddev_policy_header[target_fd])))
 					{
 						// TODO : error response
 					}
-					create_snd_file(snddev_policy[target_fd]);
+					create_snd_file(snddev_policy_header[target_fd]);
 					// TODO : success response msg
 					FD_SET(target_fd, &w_fd_set);
 				}
@@ -440,7 +452,7 @@ int main(int argc, char **argv)
 				
 				select_cnt--;
 			}
-			//TODO : clear_csp_list(snddev_policy[target_fd].csp_list);
+			clear_csp_list(snddev_policy_header + target_fd);
 		}
 	}
 }
