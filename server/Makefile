@@ -22,6 +22,8 @@ SRCS			:=	$(addprefix $(SRCS_DIR)/, $(SRC))
 OBJ_DIR			:=	objs
 OBJS			:=	$(SRC:%.c=$(OBJ_DIR)/%.o)
 
+TEST_DIR		:=	file_test
+
 RM				:=	rm -rf
 INCLUDE			:=	-Ilibari -Iincludes
 
@@ -43,10 +45,12 @@ all:				$(NAME)
 clean:
 					$(RM) $(OBJS)
 					@$(MAKE) -C $(LIB_PATH) clean
+					$(RM) $(TEST_DIR)/*
 
 fclean:				clean
 					@$(MAKE) -C $(LIB_PATH) fclean
 					$(RM) $(NAME)
+					$(RM) $(TEST_DIR)
 
 re:					fclean
 					@$(MAKE) all
