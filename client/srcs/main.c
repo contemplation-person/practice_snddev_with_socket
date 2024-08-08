@@ -227,6 +227,8 @@ int main(int argc, char **argv)
     int                     sock = 0;
     struct sockaddr_in      server_addr;
     char                    msg[BUFSIZ];
+    SocketHeader            *socket_header;
+    RestMsgType             *rest_msg;
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -257,10 +259,19 @@ int main(int argc, char **argv)
     bzero(&msg, sizeof(BUFSIZ));
 
     send_socket(sock, msg, make_msg);
-    // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
-    // TODO :json 출력
     recv(sock, msg, sizeof(BUFSIZ), 0);
-    printf("\n받은 msg\n\n%s\n", msg  + sizeof(SocketHeader) + sizeof(RestLibHeadType));
+
+    socket_header = (SocketHeader *)msg;
+    rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
+
+    // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
+    ari_title_print("recv data", COLOR_GREEN_CODE);
+    printf("socket mtype->%d\n", ntohl(socket_header->mType));
+    printf("socket header->%d\n", ntohl(socket_header->bodyLen));
+    printf("rest header->%s\n", rest_msg->header.resCode);
+    ari_title_print("recv json body", COLOR_MAGENTA_CODE);
+    ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
+
     close(sock);
     
     return (0);
