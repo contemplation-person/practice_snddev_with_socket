@@ -53,3 +53,5 @@ dkms.conf
 tags
 snd_server
 snd_client
+
+test*
