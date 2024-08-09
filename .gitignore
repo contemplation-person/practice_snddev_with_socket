@@ -55,3 +55,4 @@ snd_server
 snd_client
 
 test*
+.vscode/
