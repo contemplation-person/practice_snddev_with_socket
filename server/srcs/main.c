@@ -75,7 +75,6 @@ int recv_binary(int target_fd, char *binary, int binary_len)
 	while (recv_len < goal_len)
 	{
 		len = recv(target_fd, binary + recv_len, goal_len - recv_len, 0);
-		printf("\nrecv len: %d\n", len);
 		if (len < 1)
 		{
 			return len;
@@ -86,11 +85,11 @@ int recv_binary(int target_fd, char *binary, int binary_len)
 	return 1;
 }
 
-int same_as_akey(RestMsgType *rest_msg)
+int same_as_akey(RestLibHeadType *rest_msg)
 {
 	static char *akey = "EMG@an#2345&12980!";
 
-	if (strncmp(akey, rest_msg->header.param1Id, strlen(akey) + 1))
+	if (strncmp(akey, rest_msg->param1Id, strlen(akey) + 1))
 	{
 		return 0;
 	}
@@ -99,37 +98,36 @@ int same_as_akey(RestMsgType *rest_msg)
 
 int recv_msg(t_client *client, int target_fd)
 {
-	SocketHeader *sockh = (SocketHeader *)(client + target_fd);
-	RestMsgType *rest_msg = (RestMsgType *)(sockh + sizeof(SocketHeader));
-
+	SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
+	
 	// TODO : rest msg 를 보고 json을 recv를 해야함.
-	if (recv_binary(target_fd, (char *)sockh, sizeof(SocketHeader)) == LEAVE_CLIENT ||
-		recv_binary(target_fd, (char *)rest_msg, htonl(sockh->bodyLen)) == LEAVE_CLIENT)
+	if (recv_binary(target_fd, client[target_fd].buf, sizeof(SocketHeader)) == LEAVE_CLIENT ||
+		recv_binary(target_fd, client[target_fd].buf + sizeof(SocketHeader), ntohl(sockh->bodyLen)) == LEAVE_CLIENT)
 	{
 		return LEAVE_CLIENT;
 	}
-
-	memmove(client + target_fd, sockh, sizeof(SocketHeader));
-	memmove(client + target_fd + sizeof(SocketHeader), rest_msg, sizeof(RestLibHeadType) + htonl(sockh->bodyLen));
 
 	return 1;
 }
 
 int send_msg(t_client *client, int target_fd)
 {
-	int send_len = 0;
-	int start_pos = 0;
+	SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
 
-	do
+	int send_len = 0;
+	int goal_len = sizeof(SocketHeader) + ntohl(sockh->bodyLen);
+	int total_len;
+
+
+	while (send_len < goal_len)
 	{
-		send_len = send(target_fd, client + target_fd + start_pos, BUFSIZ - start_pos, 0);
-		if (send_len == LEAVE_CLIENT)
+		total_len = send(target_fd, client[target_fd].buf, goal_len - send_len, 0);
+		if (total_len < 1)
 		{
-			return LEAVE_CLIENT;
+			return total_len;
 		}
-		printf("\nsend_len: %d\n", send_len);
-		start_pos += send_len;
-	} while (send_len > 0);
+		send_len += total_len;
+	}
 
 	return 1;
 }
@@ -369,7 +367,7 @@ void clear_csp_list(Create_snddev_policy_header *snddev_policy_header)
 int make_server_response(SocketHeader *socketHeader, RestMsgType *restMsgType, Res_code_type res_code)
 {
 	
-	socketHeader->mType = DEF_MTYPE_SVR_RES;
+	socketHeader->mType = htonl(DEF_MTYPE_SVR_RES);
 
 
 	switch (res_code)
@@ -412,7 +410,6 @@ int main(int argc, char **argv)
 
 	fd_set w_fd_set;
 	fd_set r_fd_set;
-	fd_set w_copy_fd_set;
 	fd_set r_copy_fd_set;
 
 	FD_ZERO(&r_fd_set);
@@ -423,16 +420,16 @@ int main(int argc, char **argv)
 
 	while (42)
 	{
-		w_copy_fd_set = w_fd_set;
 		r_copy_fd_set = r_fd_set;
-		select_cnt = select(fd_max + 1, &r_copy_fd_set, &w_copy_fd_set, NULL, NULL);
+		select_cnt = select(fd_max + 1, &r_copy_fd_set, NULL, NULL, NULL);
 		for (int target_fd = 3; target_fd <= fd_max && select_cnt > 0; target_fd++)
 		{
 			if (FD_ISSET(target_fd, &r_copy_fd_set))
 			{
 				if (target_fd != sockfd)
 				{
-					if (recv_msg(client, target_fd) == LEAVE_CLIENT)
+					ari_title_print_fd(STDOUT_FILENO, "recv msg", COLOR_YELLOW_CODE);
+					if (recv_msg(client, target_fd) == LEAVE_CLIENT || errno == ECONNRESET || errno == EPIPE)
 					{
 						bzero(client + target_fd, sizeof(t_client));
 						close(target_fd);
@@ -440,19 +437,38 @@ int main(int argc, char **argv)
 						FD_CLR(target_fd, &r_fd_set);
 						continue;
 					}
-					FD_SET(target_fd, &w_fd_set);
-					if (!same_as_akey((RestMsgType *)(client + target_fd + sizeof(SocketHeader))))
+					if (!same_as_akey((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader))))
 					{
-						make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_ERROR_AKEY);
-						continue;
+						make_server_response((SocketHeader *)(client[target_fd].buf),\
+											 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),\
+											 RESPONSE_ERROR_AKEY);
+						ari_title_print_fd(STDERR_FILENO, "akey error", COLOR_RED_CODE);
 					}
-					if (!parse_rest_msg((RestMsgType *)(client + target_fd + sizeof(SocketHeader)), &(snddev_policy_header[target_fd])))
+					else if (!parse_rest_msg((RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
+											 &(snddev_policy_header[target_fd])))
 					{
-						make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_ERROR_JSON);
-						continue;
+						make_server_response((SocketHeader *)(client[target_fd].buf),	\
+											 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),\
+											 RESPONSE_ERROR_JSON);
+						ari_title_print_fd(STDERR_FILENO, "json parse error", COLOR_RED_CODE);
+					} else {
+						create_snd_file(snddev_policy_header[target_fd]);
+						make_server_response((SocketHeader *)(client[target_fd].buf),
+											 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
+											 RESPONSE_SUCCESS);
 					}
-					create_snd_file(snddev_policy_header[target_fd]);
-					make_server_response((SocketHeader *)(client + target_fd), (RestMsgType *)(client + target_fd + sizeof(SocketHeader)), RESPONSE_SUCCESS);
+					ari_title_print_fd(STDOUT_FILENO, "send msg", COLOR_YELLOW_CODE);
+
+					send_msg(client, target_fd);
+					if (errno == ECONNRESET || errno == EPIPE)
+					{
+						close(target_fd);
+						FD_CLR(target_fd, &r_fd_set);
+					}
+					bzero(&(client[target_fd]), sizeof(t_client));
+
+					clear_csp_list(snddev_policy_header + target_fd);
+					select_cnt--;
 				}
 				else
 				{
@@ -477,19 +493,6 @@ int main(int argc, char **argv)
 				}
 				select_cnt--;
 			}
-			else if (FD_ISSET(target_fd, &w_copy_fd_set))
-			{
-				if (send_msg(client, target_fd) == LEAVE_CLIENT)
-				{
-					close(target_fd);
-					FD_CLR(target_fd, &r_fd_set);
-				}
-				bzero(client + target_fd, sizeof(t_client));
-				FD_CLR(target_fd, &w_fd_set);
-				
-				select_cnt--;
-			}
-			clear_csp_list(snddev_policy_header + target_fd);
 		}
 	}
 }
