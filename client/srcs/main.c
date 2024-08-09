@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <fcntl.h>
+#include <time.h>
 
 #define MAX_DEVICE_ID_LEN 18
 #define MAX_MDN_LEN 12
@@ -199,6 +200,7 @@ int make_socket_header(char *msg, int bodyLen)
     socket_header->bodyLen = htonl(bodyLen);
     socket_header->mType = htonl(DEF_MTYPE_CLI_REQ);
 
+
     return sizeof(SocketHeader);
 }
 
@@ -219,7 +221,6 @@ void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
     {
         send_len += send(sockfd, msg, total_len, 0);
     }while (send_len < total_len);
-
 }
 
 int main(int argc, char **argv) 
@@ -256,21 +257,39 @@ int main(int argc, char **argv)
     }
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
-    bzero(&msg, sizeof(BUFSIZ));
 
-    send_socket(sock, msg, make_msg);
-    recv(sock, msg, sizeof(BUFSIZ), 0);
+    for (int i = 0; i < 5; i++)
+    {
+        clock_t start = clock();
 
-    socket_header = (SocketHeader *)msg;
-    rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
+        bzero(&msg, sizeof(BUFSIZ));
 
-    // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
-    ari_title_print("recv data", COLOR_GREEN_CODE);
-    printf("socket mtype->%d\n", ntohl(socket_header->mType));
-    printf("socket header->%d\n", ntohl(socket_header->bodyLen));
-    printf("rest header->%s\n", rest_msg->header.resCode);
-    ari_title_print("recv json body", COLOR_MAGENTA_CODE);
-    ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
+        socket_header = (SocketHeader *)msg;
+        rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
+
+        send_socket(sock, msg, make_msg);
+
+        bzero(&msg, BUFSIZ);
+        // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
+        // TODO : 받은 데이터가 ...... 원래 보낸 데이터 보다 커서.... 문제가 생기는 것,,,,,
+        // 그렇다면 무작정 보내면 안됨. 보낼 때, 보낼 데이터의 길이를 먼저 보내고, 그 길이만큼 받아야함.
+        // 받을 때도.... 그렇게 받아야함.... 
+        int recv_len = recv(sock, msg, BUFSIZ, 0);
+
+        printf("recv_len : %d\n", recv_len);
+
+        printf("recv time : %ld\n", clock() - start);
+
+        ari_title_print("recv data", COLOR_GREEN_CODE);
+        printf("socket mtype->%d\n", ntohl(socket_header->mType));
+        printf("socket header->%d\n", ntohl(socket_header->bodyLen));
+        printf("rest code %s\n", rest_msg->header.resCode);
+        printf("rest header->%s\n", msg + sizeof(SocketHeader));
+
+        ari_title_print("recv json body", COLOR_MAGENTA_CODE);
+        ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
+    }
+
 
     close(sock);
     
