@@ -3,6 +3,7 @@
 #include "medif_api.h"
 #include "json-c/json.h"
 
+#include <time.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
@@ -312,6 +313,7 @@ int create_snd_file(Create_snddev_policy_header snddev_policy)
 	int file_num = 0;
 	Create_snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
 	FILE *fp;
+	struct tm t;
 
 	system("mkdir -p file_test");
 	while (csp_list)
@@ -326,6 +328,9 @@ int create_snd_file(Create_snddev_policy_header snddev_policy)
 		{
 			return 0;
 		}
+		t = *localtime(&(time_t){time(NULL)});
+		fprintf(fp, "%-20s: %d-%d-%d %d:%d:%d\n", "생성 시각", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+		fprintf(fp, "%-20s: %d-%d-%d %d:%d:%d\n", "변경 시각", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 		fprintf(fp, "%-15s: %s\n", "DEVICE_ID", csp_list->device_id);
 		fprintf(fp, "%-15s: %s\n", "LTE_ID", snddev_policy.lte);
 		fprintf(fp, "%-15s: %s\n", "SLICE_ID", snddev_policy.slice_id);
