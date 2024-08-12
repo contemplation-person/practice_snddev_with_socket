@@ -326,6 +326,10 @@ int create_snd_file(Create_snddev_policy_header snddev_policy)
 		{
 			return 0;
 		}
+		else
+		{
+			file_num = 0;
+		}
 		t = *localtime(&(time_t){time(NULL)});
 		fprintf(fp, "%-20s: %d-%d-%d %d:%d:%d\n", "생성 시각", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 		fprintf(fp, "%-20s: %d-%d-%d %d:%d:%d\n", "변경 시각", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
