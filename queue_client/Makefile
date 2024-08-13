@@ -16,7 +16,7 @@ CFLAGS		  	:=	-Wall -Wextra -Werror
 NAME			:=	queue_client
 
 SRCS_DIR		:=	srcs
-SRC				:=	main.c 
+SRC				:=	queue_client.c 
 SRCS			:=	$(addprefix $(SRCS_DIR)/, $(SRC))
 
 OBJ_DIR			:=	objs
