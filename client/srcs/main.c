@@ -33,7 +33,7 @@ int make_rest_header(char *msg, int json_len)
     return sizeof(RestLibHeadType);
 }
 
-json_object *make_object(t_element element)
+json_object *make_object(create_snd_dev_policy element)
 {
     json_object *object_element = json_object_new_object();
     char *element_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
@@ -73,10 +73,11 @@ void ari_json_object_print(json_object *json)
     ari_putendl_fd(print_string, 1);
 }
 
+// create_snd_dev_policy 의 데이터로 받는다.
 int make_json_body(char *msg)
 {
     json_object *json_root = json_object_new_object();
-    t_element element;
+    create_snd_dev_policy element;
     int json_len;
 
     json_object_object_add(json_root, "LTEID", json_object_new_string("HANHWA"));
@@ -84,7 +85,7 @@ int make_json_body(char *msg)
 
     json_object *json_array = json_object_new_array();
 
-    bzero(&element, sizeof(t_element));
+    bzero(&element, sizeof(create_snd_dev_policy));
     element.auth_type = 1;
     element.two_fa_use = 1;
     element.device_suspend = 0;
@@ -101,7 +102,7 @@ int make_json_body(char *msg)
 
     json_object_array_add(json_array, make_object(element));
 
-    bzero(&element, sizeof(t_element));
+    bzero(&element, sizeof(create_snd_dev_policy));
     element.auth_type = 0;
     element.two_fa_use = 0;
     element.device_suspend = 1;
@@ -142,6 +143,11 @@ int make_socket_header(char *msg, int bodyLen)
 
 int make_msg(char *msg) 
 {
+    // TODO : message queue로 받기
+    
+    exit (1);
+    // TODO: json 변환
+
     int json_len = make_json_body(msg);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
@@ -166,6 +172,7 @@ int main(int argc, char **argv)
     char                    msg[BUFSIZ];
     SocketHeader            *socket_header;
     RestMsgType             *rest_msg;
+    clock_t                 start;
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -196,7 +203,7 @@ int main(int argc, char **argv)
 
     for (int i = 0; i < 5; i++)
     {
-        clock_t start = clock();
+        start = clock();
 
         bzero(&msg, sizeof(BUFSIZ));
 
@@ -213,15 +220,12 @@ int main(int argc, char **argv)
         int recv_len = recv(sock, msg, BUFSIZ, 0);
 
         printf("recv_len : %d\n", recv_len);
-
         printf("recv time : %ld\n", clock() - start);
-
         ari_title_print("recv data", COLOR_GREEN_CODE);
         printf("socket mtype->%d\n", ntohl(socket_header->mType));
         printf("socket header->%d\n", ntohl(socket_header->bodyLen));
         printf("rest code %s\n", rest_msg->header.resCode);
         printf("rest header->%s\n", msg + sizeof(SocketHeader));
-
         ari_title_print("recv json body", COLOR_MAGENTA_CODE);
         ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
     }

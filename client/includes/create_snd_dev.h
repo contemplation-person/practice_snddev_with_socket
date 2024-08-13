@@ -1,20 +1,5 @@
-#ifndef SND_CLIENT_H
-#define SND_CLIENT_H
-#include "libari.h"
-#include "rest_api_message.h"
-#include "medif_api.h"
-
-#include <json-c/json.h>
-
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <time.h>
+#ifndef CREATE_SND_DEV_H
+#define CREATE_SND_DEV_H
 
 #define MAX_DEVICE_ID_LEN 18
 #define MAX_MDN_LEN 12
@@ -40,7 +25,7 @@ typedef struct
 
     char device_name[MAX_DEVICE_NAME_LEN];
     char serial_number[MAX_SERIAL_NUMBER_LEN];
-} t_element;
+} create_snd_dev_policy;
 
 #define FORECH_ELEMENT(GENERATE_ELEMENT) \
     GENERATE_ELEMENT(AUTH_TYPE) \
@@ -56,7 +41,6 @@ typedef struct
     GENERATE_ELEMENT(DEVICE_NAME) \
     GENERATE_ELEMENT(SERIAL_NUMBER)
 
-
 #define GENERATE_ELEMENT_STRING(ELEMENT) #ELEMENT,
 #define GENERATE_ELEMENT_ENUM(ELEMENT) ELEMENT,
 
@@ -64,6 +48,5 @@ typedef enum
 {
     FORECH_ELEMENT(GENERATE_ELEMENT_ENUM)
     MAX_ELEMENT,
-} t_element_str;
-
+} create_snd_dev_policy_enum;
 #endif
