@@ -33,7 +33,7 @@ int make_rest_header(char *msg, int json_len)
     return sizeof(RestLibHeadType);
 }
 
-json_object *make_object(create_snd_dev_policy element)
+json_object *make_object(Create_snd_dev_policy element)
 {
     json_object *object_element = json_object_new_object();
     char *element_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
@@ -73,56 +73,24 @@ void ari_json_object_print(json_object *json)
     ari_putendl_fd(print_string, 1);
 }
 
-// create_snd_dev_policy 의 데이터로 받는다.
-int make_json_body(char *msg)
+int make_json_body(char *msg, Create_snd_dev_policy csdp)
 {
     json_object *json_root = json_object_new_object();
-    create_snd_dev_policy element;
     int json_len;
 
-    json_object_object_add(json_root, "LTEID", json_object_new_string("HANHWA"));
-    json_object_object_add(json_root, "SLICE_ID", json_object_new_string("1"));
+    json_object_object_add(json_root, "LTEID", csdp.lte_id);
+    json_object_object_add(json_root, "SLICE_ID", csdp.slice_id);
 
     json_object *json_array = json_object_new_array();
 
-    bzero(&element, sizeof(create_snd_dev_policy));
-    element.auth_type = 1;
-    element.two_fa_use = 1;
-    element.device_suspend = 0;
-    element.id_type = 1;
-    element.ip_pool_index = 1;
+    json_object_array_add(json_array, make_object(csdp)); 
 
-    strcpy(element.device_id, "F2-10-29-21-62-51");
-    strcpy(element.mdn, "01029216251");
-    strcpy(element.ip, "10.5.0.142");
-    strcpy(element.user_id, "SNDHELLOWORLD");
-    strcpy(element.device_type, "PC");
-    strcpy(element.device_name, "MODEL GOOD");
-    strcpy(element.serial_number, "207NZCG009587");
-
-    json_object_array_add(json_array, make_object(element));
-
-    bzero(&element, sizeof(create_snd_dev_policy));
-    element.auth_type = 0;
-    element.two_fa_use = 0;
-    element.device_suspend = 1;
-    element.id_type = 1;
-    element.ip_pool_index = 1;
-
-    strcpy(element.device_id, "F2-11-11-11-11-11");
-    strcpy(element.mdn, "22222222222");
-    strcpy(element.ip, "11.15.0.111");
-    strcpy(element.user_id, "HIHI");
-    strcpy(element.device_type, "PC");
-    strcpy(element.device_name, "YEAH");
-    strcpy(element.serial_number, "333NZ3G003333");
-
-    json_object_array_add(json_array, make_object(element));
-    
     json_object_object_add(json_root, "list", json_array);
 
     ari_title_print_fd(STDOUT_FILENO, "client json object", COLOR_GREEN_CODE);
     ari_json_object_print(json_root);
+
+    bzero(msg, BUFSIZ);
 
     json_len = sprintf(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType), "%s", json_object_to_json_string(json_root));
     json_object_put(json_root);
@@ -141,21 +109,32 @@ int make_socket_header(char *msg, int bodyLen)
     return sizeof(SocketHeader);
 }
 
-int make_msg(char *msg) 
+Create_snd_dev_policy get_create_snd_dev_policy_data(int msgid)
 {
-    // TODO : message queue로 받기
+    Msg_queue   msg_queue;
+
+    //ari_title_print_fd(STDOUT_FILENO, "wait....", COLOR_YELLOW_CODE);
+    // TODO : 에러처리
+    msgrcv(msgid, &msg_queue, sizeof(Msg_queue), CREATE_SND_DEV_POLICY_TYPE_ENUM, IPC_NOWAIT);
+    msgctl(msgid, IPC_RMID, NULL);
+
+    return msg_queue.create_snd_dev_policy;
+}
+
+int make_msg(char *msg, int msgid) 
+{
+    Create_snd_dev_policy csdp = get_create_snd_dev_policy_data(int msgid);
     
-    exit (1);
     // TODO: json 변환
 
-    int json_len = make_json_body(msg);
+    int json_len = make_json_body(msg, csdp);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
-void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
+void send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
 {
-    int total_len = make_msg(msg);
+    int total_len = make_msg(msg, msgid);
     int send_len = 0;
     
     // TODO : 인자가 -1일 때 처리
@@ -168,6 +147,8 @@ void send_socket(int sockfd, char *msg, int (*make_msg)(char *))
 int main(int argc, char **argv) 
 {
     int                     sock = 0;
+    int                     msgid;
+    key_t                   key;
     struct sockaddr_in      server_addr;
     char                    msg[BUFSIZ];
     SocketHeader            *socket_header;
@@ -201,18 +182,20 @@ int main(int argc, char **argv)
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
+
+    key = ftok("create_snd_dev_policy", 42);
+    msgid = msgget(key, 0666 | IPC_CREAT);
+
     for (int i = 0; i < 5; i++)
     {
         start = clock();
 
         bzero(&msg, sizeof(BUFSIZ));
-
         socket_header = (SocketHeader *)msg;
         rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
-        send_socket(sock, msg, make_msg);
+        send_socket(sock, msg, msgid, make_msg);
 
-        bzero(&msg, BUFSIZ);
         // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
         // TODO : 받은 데이터가 ...... 원래 보낸 데이터 보다 커서.... 문제가 생기는 것,,,,,
         // 그렇다면 무작정 보내면 안됨. 보낼 때, 보낼 데이터의 길이를 먼저 보내고, 그 길이만큼 받아야함.
