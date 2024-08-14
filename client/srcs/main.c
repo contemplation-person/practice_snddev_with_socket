@@ -4,8 +4,7 @@ int is_valid_json(const char *json_string)
 {
     struct json_object *parsed_json = json_tokener_parse(json_string);
     
-    if (parsed_json == NULL) 
-    {
+    if (parsed_json == NULL) {
         return 0;
     }
 
@@ -13,8 +12,7 @@ int is_valid_json(const char *json_string)
     return 1;
 }
 
-int make_rest_header(char *msg, int json_len)
-{
+int make_rest_header(char *msg, int json_len) {
     char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
     RestLibHeadType *rest_header = (RestLibHeadType *)(msg + sizeof(SocketHeader));
     static int tid = 0;
@@ -33,8 +31,7 @@ int make_rest_header(char *msg, int json_len)
     return sizeof(RestLibHeadType);
 }
 
-json_object *make_object(Create_snd_dev_policy element)
-{
+json_object *make_object(Create_snd_dev_policy_list element) {
     json_object *object_element = json_object_new_object();
     char *element_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
 
@@ -62,15 +59,13 @@ json_object *make_object(Create_snd_dev_policy element)
     return object_element;
 }
 
-void ari_json_object_print(json_object *json)
-{
+void ari_json_object_print(json_object *json) {
     const char *print_string = json_object_to_json_string_ext(json, JSON_C_TO_STRING_PRETTY);
 
     ari_putendl_fd(print_string, 1);
 }
 
-int make_json_body(char *msg, Create_snd_dev_policy csdp)
-{
+int make_json_body(char *msg, Create_snd_dev_policy csdp) {
     json_object *json_root = json_object_new_object();
     int json_len;
 
@@ -79,7 +74,9 @@ int make_json_body(char *msg, Create_snd_dev_policy csdp)
 
     json_object *json_array = json_object_new_array();
 
-    json_object_array_add(json_array, make_object(csdp)); 
+    for (int idx = 0; idx < csdp.max_list_idx; idx++) {
+        json_object_array_add(json_array, make_object(csdp.create_snd_dev_policy[idx])); 
+    }
 
     json_object_object_add(json_root, "list", json_array);
 
@@ -94,8 +91,7 @@ int make_json_body(char *msg, Create_snd_dev_policy csdp)
     return json_len;
 }
 
-int make_socket_header(char *msg, int bodyLen)
-{
+int make_socket_header(char *msg, int bodyLen) {
     SocketHeader *socket_header = (SocketHeader *)msg;
 
     socket_header->bodyLen = htonl(bodyLen);
@@ -105,39 +101,32 @@ int make_socket_header(char *msg, int bodyLen)
     return sizeof(SocketHeader);
 }
 
-Create_snd_dev_policy get_create_snd_dev_policy_data(int msgid)
-{
+Msg_queue get_msg_queue(int msgid) {
     Msg_queue msg_queue = {0};
 
-    if (msgrcv(msgid, &msg_queue, sizeof(Msg_queue), 0, IPC_NOWAIT) == -1)
-    {
-        msg_queue.create_snd_dev_policy.device_id[0] = '\0';
-        return msg_queue.create_snd_dev_policy;
+    if (msgrcv(msgid, &msg_queue, sizeof(Msg_queue), 0, IPC_NOWAIT) == -1) {
+        msg_queue.msg_type = -1;
     }
 
-    return msg_queue.create_snd_dev_policy;
+    return msg_queue;
 }
 
-int make_msg(char *msg, int msgid) 
-{
-    int                     json_len;
-    Create_snd_dev_policy   csdp = get_create_snd_dev_policy_data(msgid);
+int make_msg(char *msg, int msgid) {
+    int         json_len;
+    Msg_queue   msg_q = get_msg_queue(msgid);
 
-    if (strcmp(csdp.device_id, "") == 0)
-    {
+    if (msg_q.msg_type == -1) {
         return false;
     }
     
-    json_len = make_json_body(msg, csdp);
+    json_len = make_json_body(msg, msg_q.msg);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
-int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
-{
+int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int)) {
     int total_len = make_msg(msg, msgid);
-    if (total_len == false)
-    {
+    if (total_len == false) {
         return false;
     }
     int send_len = 0;
@@ -145,8 +134,7 @@ int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
     // TODO : 인자가 -1일 때 처리, errno 에 따라 버퍼를 따로 만들어서 처리할지 소켓을 닫을지 결정
     // TODO : send가 partial write 일 때 처리
     send_len = send(sockfd, msg, total_len, 0);
-    if (send_len == -1)
-    {
+    if (send_len == -1) {
         perror("send");
         return false;
     }
@@ -154,24 +142,22 @@ int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
     return true;
 }
 
-int set_non_blocking(int sockfd)
-{
+int set_non_blocking(int sockfd) {
 	int flags = fcntl(sockfd, F_GETFL, 0);
 
-	if (flags == -1)
-	{
+	if (flags == -1) {
 		perror("fcntl get");
 		return -1;
 	}
 	return fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 }
 
-int main(int argc, char **argv) 
-{
+int main(int argc, char **argv) {
     key_t                   key;
     struct sockaddr_in      server_addr;
 
     char                    msg[BUFSIZ];
+
     int                     sock;
     int                     msgid;
     int                     recv_len;
@@ -180,12 +166,9 @@ int main(int argc, char **argv)
     RestMsgType             *rest_msg;
     clock_t                 start;
 
-    
-
     bzero(&server_addr, sizeof(server_addr));
 
-    if (argc != 3)
-    {
+    if (argc != 3) {
         ari_title_print_fd(STDERR_FILENO, "인자가 다릅니다. ./snd_client [IP] [PORT]", COLOR_RED_CODE);
         return (-1);
     }
@@ -195,14 +178,12 @@ int main(int argc, char **argv)
     server_addr.sin_port = htons(atoi(argv[2]));
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1)
-    {
+    if (sock == -1) {
         ari_print_error("socket error", __FILE__, __LINE__);
         return (-1);
     }
 
-    if (connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr)) != 0)
-    {
+    if (connect(sock, (struct sockaddr*) &server_addr, sizeof(server_addr)) != 0) {
         ari_print_error("connect error", __FILE__, __LINE__);
         return (-1);
     }
@@ -215,8 +196,7 @@ int main(int argc, char **argv)
     set_non_blocking(sock);
     //TODO : select를 사용해서 멀티 플렉싱 되도록 수정???
 
-    while (42)
-    {
+    while (42) {
         start = clock();
 
         socket_header = (SocketHeader *)msg;
@@ -226,8 +206,7 @@ int main(int argc, char **argv)
 
         // TODO : recv가 partial read 일 때 처리
         recv_len = recv(sock, msg, BUFSIZ, 0);
-        if (recv_len > 0)
-        {
+        if (recv_len > 0) {
             printf("recv_len : %d\n", recv_len);
             printf("recv time : %ld\n", clock() - start);
             ari_title_print("recv data", COLOR_GREEN_CODE);
@@ -242,7 +221,6 @@ int main(int argc, char **argv)
     }
 
     msgctl(msgid, IPC_RMID, NULL);
-
     close(sock);
     
     return (0);

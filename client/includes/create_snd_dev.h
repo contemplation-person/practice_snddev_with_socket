@@ -10,32 +10,31 @@
 #define MAX_SERIAL_NUMBER 31
 #define MAX_LTE_ID 20
 #define MAX_SLICE_ID 4
+#define MAX_CREATE_SND_DEV_POLICY_LIST 10 // TODO: 추후 100개로 조정
 
-/*
-struct snd {
+typedef struct
+{
+    int     auth_type;
+    int     two_fa_use;
+    int     device_suspend;
+    int     id_type; 
+    int     ip_pool_index;
 
-};
-struct snd snd[1];
-*/
+    char    device_id[MAX_DEVICE_ID];
+    char    mdn[MAX_MDN];
+    char    ip[MAX_IP];
+    char    user_id[MAX_USER_ID];
+    char    device_type[MAX_DEVICE_TYPE];
+    char    device_name[MAX_DEVICE_NAME];
+    char    serial_number[MAX_SERIAL_NUMBER];
+}Create_snd_dev_policy_list;
+
 typedef struct 
 {
-    char lte_id[MAX_LTE_ID];
-    char slice_id[MAX_SLICE_ID];
-
-    int auth_type;
-    int two_fa_use;
-    int device_suspend;
-    int id_type; 
-    int ip_pool_index;
-
-    char device_id[MAX_DEVICE_ID];
-    char mdn[MAX_MDN];
-    char ip[MAX_IP];
-    char user_id[MAX_USER_ID];
-    char device_type[MAX_DEVICE_TYPE];
-
-    char device_name[MAX_DEVICE_NAME];
-    char serial_number[MAX_SERIAL_NUMBER];
+    char                        lte_id[MAX_LTE_ID];
+    char                        slice_id[MAX_SLICE_ID];
+    int                         max_list_idx;
+    Create_snd_dev_policy_list  create_snd_dev_policy[MAX_CREATE_SND_DEV_POLICY_LIST];
 } Create_snd_dev_policy;
 
 #define FORECH_ELEMENT(GENERATE_ELEMENT) \
@@ -66,7 +65,7 @@ typedef enum
 typedef struct 
 {
     long msg_type;
-    Create_snd_dev_policy create_snd_dev_policy;
+    Create_snd_dev_policy msg;
 }Msg_queue;
 
 typedef enum
