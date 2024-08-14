@@ -71,7 +71,7 @@ typedef struct
 
 typedef enum
 {
-    CREATE_SND_DEV_POLICY_TYPE = 1,
+    CREATE_SND_DEV_POLICY_TYPE_ENUM = 1,
 } Emg_msg_type;
 
 #endif

@@ -197,7 +197,11 @@ int main()
 
         if (make_create_snd_dev_policy(&msg_q))
         {
-            msgsnd(msgid, &msg_q, sizeof(msg_q), 0);
+            if (msgsnd(msgid, &msg_q, sizeof(msg_q), 0) == -1)
+            {
+                perror("msgsnd");
+                return 1;
+            }
         }
     }
 
