@@ -336,11 +336,13 @@ int create_snd_file(Create_snddev_policy_header snddev_policy)
 		fprintf(fp, "%-15s: %s\n", "DEVICE_ID", csp_list->device_id);
 		fprintf(fp, "%-15s: %s\n", "LTE_ID", snddev_policy.lte);
 		fprintf(fp, "%-15s: %s\n", "SLICE_ID", snddev_policy.slice_id);
+
 		fprintf(fp, "%-15s: %d\n", "AUTH_TYPE", csp_list->auth_type);
 		fprintf(fp, "%-15s: %d\n", "TWO_FA_USE", csp_list->two_fa_use);
 		fprintf(fp, "%-15s: %d\n", "DEVICE_SUSPEND", csp_list->device_suspend);
 		fprintf(fp, "%-15s: %d\n", "ID_TYPE", csp_list->id_type);
 		fprintf(fp, "%-15s: %d\n", "IP_POOL_INDEX", csp_list->ip_pool_index);
+
 		fprintf(fp, "%-15s: %s\n", "MDN", csp_list->mdn);
 		fprintf(fp, "%-15s: %s\n", "IP", csp_list->ip);
 		fprintf(fp, "%-15s: %s\n", "USER_ID", csp_list->user_id);
