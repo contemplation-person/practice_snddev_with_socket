@@ -36,7 +36,7 @@ typedef struct
 
     char device_name[MAX_DEVICE_NAME];
     char serial_number[MAX_SERIAL_NUMBER];
-    } Create_snd_dev_policy;
+} Create_snd_dev_policy;
 
 #define FORECH_ELEMENT(GENERATE_ELEMENT) \
     GENERATE_ELEMENT(LTE_ID) \

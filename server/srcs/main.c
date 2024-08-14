@@ -72,6 +72,7 @@ int recv_binary(int target_fd, char *binary, int binary_len)
 	int goal_len = binary_len;
 	int len = 0;
 
+	// FIXME: 만약 문자가 partial read라면 cnt를 기억하고 다시 읽어야함.
 	while (recv_len < goal_len)
 	{
 		len = recv(target_fd, binary + recv_len, goal_len - recv_len, 0);
@@ -100,7 +101,6 @@ int recv_msg(t_client *client, int target_fd)
 {
 	SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
 	
-	// TODO : rest msg 를 보고 json을 recv를 해야함.
 	if (recv_binary(target_fd, client[target_fd].buf, sizeof(SocketHeader)) == LEAVE_CLIENT ||
 		recv_binary(target_fd, client[target_fd].buf + sizeof(SocketHeader), ntohl(sockh->bodyLen)) == LEAVE_CLIENT)
 	{
@@ -118,7 +118,7 @@ int send_msg(t_client *client, int target_fd)
 	int goal_len = sizeof(SocketHeader) + ntohl(sockh->bodyLen);
 	int total_len;
 
-
+	// FIXME: 만약 문자가 partial write라면 cnt를 기억하고 다시 보내야함.
 	while (send_len < goal_len)
 	{
 		total_len = send(target_fd, client[target_fd].buf, goal_len - send_len, 0);
@@ -432,6 +432,7 @@ int main(int argc, char **argv)
 		{
 			if (FD_ISSET(target_fd, &r_copy_fd_set))
 			{
+				select_cnt--;
 				if (target_fd != sockfd)
 				{
 					ari_title_print_fd(STDOUT_FILENO, "recv msg", COLOR_YELLOW_CODE);
@@ -474,7 +475,6 @@ int main(int argc, char **argv)
 					bzero(&(client[target_fd]), sizeof(t_client));
 
 					clear_csp_list(snddev_policy_header + target_fd);
-					select_cnt--;
 				}
 				else
 				{
@@ -497,7 +497,6 @@ int main(int argc, char **argv)
 					if (fd_max < connfd)
 						fd_max = connfd;
 				}
-				select_cnt--;
 			}
 		}
 	}

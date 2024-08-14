@@ -143,6 +143,7 @@ int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
     int send_len = 0;
     
     // TODO : 인자가 -1일 때 처리, errno 에 따라 버퍼를 따로 만들어서 처리할지 소켓을 닫을지 결정
+    // TODO : send가 partial write 일 때 처리
     send_len = send(sockfd, msg, total_len, 0);
     if (send_len == -1)
     {
@@ -167,15 +168,19 @@ int set_non_blocking(int sockfd)
 
 int main(int argc, char **argv) 
 {
-    int                     sock = 0;
-    int                     msgid;
-    int                     recv_len;
     key_t                   key;
     struct sockaddr_in      server_addr;
+
     char                    msg[BUFSIZ];
+    int                     sock;
+    int                     msgid;
+    int                     recv_len;
+
     SocketHeader            *socket_header;
     RestMsgType             *rest_msg;
     clock_t                 start;
+
+    
 
     bzero(&server_addr, sizeof(server_addr));
 
@@ -208,7 +213,7 @@ int main(int argc, char **argv)
     msgid = msgget(key, 0666 | IPC_CREAT);
 
     set_non_blocking(sock);
-    //TODO : select를 사용해서 non-blocking으로 만들어야함.
+    //TODO : select를 사용해서 멀티 플렉싱 되도록 수정???
 
     while (42)
     {
@@ -219,6 +224,7 @@ int main(int argc, char **argv)
 
         send_socket(sock, msg, msgid, make_msg);
 
+        // TODO : recv가 partial read 일 때 처리
         recv_len = recv(sock, msg, BUFSIZ, 0);
         if (recv_len > 0)
         {
