@@ -38,16 +38,12 @@ json_object *make_object(Create_snd_dev_policy element)
     json_object *object_element = json_object_new_object();
     char *element_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
 
-    if (element.auth_type)
-        json_object_object_add(object_element, element_str_arr[AUTH_TYPE], json_object_new_int(element.auth_type));
-    if (element.two_fa_use)
-        json_object_object_add(object_element, element_str_arr[TWO_FA_USE], json_object_new_int(element.two_fa_use));
-    if (element.device_suspend)
-        json_object_object_add(object_element, element_str_arr[DEVICE_SUSPEND], json_object_new_int(element.device_suspend));
-    if (element.id_type)
-        json_object_object_add(object_element, element_str_arr[ID_TYPE], json_object_new_int(element.id_type));
-    if (element.ip_pool_index)
-        json_object_object_add(object_element, element_str_arr[IP_POOL_INDEX], json_object_new_int(element.ip_pool_index));
+    json_object_object_add(object_element, element_str_arr[AUTH_TYPE], json_object_new_int(element.auth_type));
+    json_object_object_add(object_element, element_str_arr[TWO_FA_USE], json_object_new_int(element.two_fa_use));
+    json_object_object_add(object_element, element_str_arr[DEVICE_SUSPEND], json_object_new_int(element.device_suspend));
+    json_object_object_add(object_element, element_str_arr[ID_TYPE], json_object_new_int(element.id_type));
+    json_object_object_add(object_element, element_str_arr[IP_POOL_INDEX], json_object_new_int(element.ip_pool_index));
+
     if (element.device_id)
         json_object_object_add(object_element, element_str_arr[DEVICE_ID], json_object_new_string(element.device_id));
     if (element.mdn)
@@ -78,8 +74,8 @@ int make_json_body(char *msg, Create_snd_dev_policy csdp)
     json_object *json_root = json_object_new_object();
     int json_len;
 
-    json_object_object_add(json_root, "LTEID", csdp.lte_id);
-    json_object_object_add(json_root, "SLICE_ID", csdp.slice_id);
+    json_object_object_add(json_root, "LTEID", json_object_new_string( csdp.lte_id));
+    json_object_object_add(json_root, "SLICE_ID", json_object_new_string(csdp.slice_id));
 
     json_object *json_array = json_object_new_array();
 
@@ -111,43 +107,69 @@ int make_socket_header(char *msg, int bodyLen)
 
 Create_snd_dev_policy get_create_snd_dev_policy_data(int msgid)
 {
-    Msg_queue   msg_queue;
+    Msg_queue msg_queue = {0};
 
-    //ari_title_print_fd(STDOUT_FILENO, "wait....", COLOR_YELLOW_CODE);
-    // TODO : 에러처리
-    msgrcv(msgid, &msg_queue, sizeof(Msg_queue), CREATE_SND_DEV_POLICY_TYPE_ENUM, IPC_NOWAIT);
-    msgctl(msgid, IPC_RMID, NULL);
+    if (msgrcv(msgid, &msg_queue, sizeof(Msg_queue), 0, IPC_NOWAIT) == -1)
+    {
+        msg_queue.create_snd_dev_policy.device_id[0] = '\0';
+        return msg_queue.create_snd_dev_policy;
+    }
 
     return msg_queue.create_snd_dev_policy;
 }
 
 int make_msg(char *msg, int msgid) 
 {
-    Create_snd_dev_policy csdp = get_create_snd_dev_policy_data(int msgid);
-    
-    // TODO: json 변환
+    int                     json_len;
+    Create_snd_dev_policy   csdp = get_create_snd_dev_policy_data(msgid);
 
-    int json_len = make_json_body(msg, csdp);
+    if (strcmp(csdp.device_id, "") == 0)
+    {
+        return false;
+    }
+    
+    json_len = make_json_body(msg, csdp);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
-void send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
+int send_socket(int sockfd, char *msg, int msgid,int (*make_msg)(char *, int))
 {
     int total_len = make_msg(msg, msgid);
+    if (total_len == false)
+    {
+        return false;
+    }
     int send_len = 0;
     
-    // TODO : 인자가 -1일 때 처리
-    do 
+    // TODO : 인자가 -1일 때 처리, errno 에 따라 버퍼를 따로 만들어서 처리할지 소켓을 닫을지 결정
+    send_len = send(sockfd, msg, total_len, 0);
+    if (send_len == -1)
     {
-        send_len += send(sockfd, msg, total_len, 0);
-    }while (send_len < total_len);
+        perror("send");
+        return false;
+    }
+
+    return true;
+}
+
+int set_non_blocking(int sockfd)
+{
+	int flags = fcntl(sockfd, F_GETFL, 0);
+
+	if (flags == -1)
+	{
+		perror("fcntl get");
+		return -1;
+	}
+	return fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 }
 
 int main(int argc, char **argv) 
 {
     int                     sock = 0;
     int                     msgid;
+    int                     recv_len;
     key_t                   key;
     struct sockaddr_in      server_addr;
     char                    msg[BUFSIZ];
@@ -182,37 +204,38 @@ int main(int argc, char **argv)
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
-
     key = ftok("create_snd_dev_policy", 42);
     msgid = msgget(key, 0666 | IPC_CREAT);
 
-    for (int i = 0; i < 5; i++)
+    set_non_blocking(sock);
+    //TODO : select를 사용해서 non-blocking으로 만들어야함.
+
+    while (42)
     {
         start = clock();
 
-        bzero(&msg, sizeof(BUFSIZ));
         socket_header = (SocketHeader *)msg;
         rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
         send_socket(sock, msg, msgid, make_msg);
 
-        // TODO :read 받은 데이터를 socket header, rest header, json body로 나눠 담기
-        // TODO : 받은 데이터가 ...... 원래 보낸 데이터 보다 커서.... 문제가 생기는 것,,,,,
-        // 그렇다면 무작정 보내면 안됨. 보낼 때, 보낼 데이터의 길이를 먼저 보내고, 그 길이만큼 받아야함.
-        // 받을 때도.... 그렇게 받아야함.... 
-        int recv_len = recv(sock, msg, BUFSIZ, 0);
+        recv_len = recv(sock, msg, BUFSIZ, 0);
+        if (recv_len > 0)
+        {
+            printf("recv_len : %d\n", recv_len);
+            printf("recv time : %ld\n", clock() - start);
+            ari_title_print("recv data", COLOR_GREEN_CODE);
+            printf("socket mtype->%d\n", ntohl(socket_header->mType));
+            printf("socket header->%d\n", ntohl(socket_header->bodyLen));
+            printf("rest code %s\n", rest_msg->header.resCode);
+            printf("rest header->%s\n", msg + sizeof(SocketHeader));
+            ari_title_print("recv json body", COLOR_MAGENTA_CODE);
+            ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
+        }
 
-        printf("recv_len : %d\n", recv_len);
-        printf("recv time : %ld\n", clock() - start);
-        ari_title_print("recv data", COLOR_GREEN_CODE);
-        printf("socket mtype->%d\n", ntohl(socket_header->mType));
-        printf("socket header->%d\n", ntohl(socket_header->bodyLen));
-        printf("rest code %s\n", rest_msg->header.resCode);
-        printf("rest header->%s\n", msg + sizeof(SocketHeader));
-        ari_title_print("recv json body", COLOR_MAGENTA_CODE);
-        ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
     }
 
+    msgctl(msgid, IPC_RMID, NULL);
 
     close(sock);
     
