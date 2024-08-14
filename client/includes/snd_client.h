@@ -19,5 +19,6 @@
 #include <time.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include "stdbool.h"
 
 #endif
