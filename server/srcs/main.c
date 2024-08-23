@@ -130,25 +130,6 @@ t_buf_state recv_msg(t_client *client, int target_fd) {
     return *buf_state;
 }
 
-int send_msg(t_client *client, int target_fd) {
-    SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
-
-    int send_len = 0;
-    int goal_len = sizeof(SocketHeader) + ntohl(sockh->bodyLen);
-    int total_len;
-
-    // FIXME: 만약 문자가 partial write라면 cnt를 기억하고 다시 보내야함.
-    while (send_len < goal_len) {
-        total_len = send(target_fd, client[target_fd].buf, goal_len - send_len, 0);
-        if (total_len < 1) {
-            return total_len;
-        }
-        send_len += total_len;
-    }
-
-    return 1;
-}
-
 void check_argc(int argc) {
     if (argc != 2) {
         ari_title_print_fd(STDERR_FILENO, "ARG ERROR [PORT]", COLOR_RED_CODE);
@@ -439,6 +420,32 @@ int validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli,
     return true;
 }
 
+int send_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set) {
+    SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
+    int *current_len = &client[target_fd].curent_len;
+    char **buf_ptr = &client[target_fd].buf_ptr;
+
+    int send_len;
+    int goal_len = sizeof(SocketHeader) + ntohl(sockh->bodyLen);
+
+    send_len = send(target_fd, client[target_fd].buf, goal_len - *current_len, 0);
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        *current_len += send_len;
+        *buf_ptr += send_len;
+        return false;
+    } else if (send_len == -1 || send_len == 0) {
+        close(target_fd);
+        FD_CLR(target_fd, r_fd_set);
+        FD_CLR(target_fd, w_fd_set);
+        return false;
+    } 
+
+    init_client_one((client + target_fd));
+    FD_CLR(target_fd, w_fd_set);
+
+    return true;
+}
+
 int main(int argc, char **argv) {
     system("ulimit -s 10000");
 
@@ -509,17 +516,9 @@ int main(int argc, char **argv) {
                 }
             }
             if (FD_ISSET(target_fd, &w_copy_fd_set)) {
-                // 아니면 재시도
-                send_msg(client, target_fd);
-                if (errno == ECONNRESET || errno == EPIPE) {
-                    close(target_fd);
-                    FD_CLR(target_fd, &r_fd_set);
+                if (send_msg(client, target_fd, &r_fd_set, &w_fd_set)) {
+                    clear_csp_list(snddev_policy_header + target_fd);
                 }
-
-                init_client_one(client + target_fd);
-                FD_CLR(target_fd, &w_fd_set);
-
-                clear_csp_list(snddev_policy_header + target_fd);
             }
         }
     }
