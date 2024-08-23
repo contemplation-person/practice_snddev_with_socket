@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -168,7 +169,7 @@ int set_non_blocking(int sockfd) {
 
 int init_socket(char *port, struct sockaddr_in *servaddr) {
     int sockfd;
-    int true = 1;
+    int yes = 1;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
@@ -176,7 +177,7 @@ int init_socket(char *port, struct sockaddr_in *servaddr) {
         exit(1);
     }
 
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void *)&true, sizeof(socklen_t));
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (void *)&yes, sizeof(socklen_t));
 
     bzero(servaddr, sizeof(*servaddr));
 
@@ -399,6 +400,45 @@ void init_client(t_client *client) {
     }
 }
 
+void validate_rules(t_client *client, int target_fd, Create_snddev_policy_header *snddev_policy_header) {
+    if (!same_as_akey((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader)))) {
+        make_server_response((SocketHeader *)(client[target_fd].buf),
+                             (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_AKEY);
+        ari_title_print_fd(STDERR_FILENO, "akey error", COLOR_RED_CODE);
+    } else if (!parse_rest_msg((RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
+                               &(snddev_policy_header[target_fd]))) {
+        make_server_response((SocketHeader *)(client[target_fd].buf),
+                             (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_JSON);
+        ari_title_print_fd(STDERR_FILENO, "json parse error", COLOR_RED_CODE);
+    } else {
+        create_snd_file(snddev_policy_header[target_fd]);
+        make_server_response((SocketHeader *)(client[target_fd].buf),
+                             (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_SUCCESS);
+    }
+    ari_title_print_fd(STDOUT_FILENO, "send msg", COLOR_YELLOW_CODE);
+
+}
+/**
+ * @param sph : Create_snddev_policy_header
+ * @return boolean 
+ */
+int validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli, char *allowed_ip, int *len,
+                               Create_snddev_policy_header *sph) {
+    *connfd = accept(sockfd, (struct sockaddr *)cli, (socklen_t *)len);
+
+    strcpy(sph[*connfd].real_ip, inet_ntoa(cli->sin_addr));
+    ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
+    ari_title_print_fd(STDOUT_FILENO, sph[*connfd].real_ip, COLOR_GREEN_CODE);
+
+    if (strncmp(sph[*connfd].real_ip, allowed_ip, strlen(allowed_ip)) || *connfd < 0) {
+        ari_title_print_fd(STDERR_FILENO, "Not allowed ip", COLOR_RED_CODE);
+        close(*connfd);
+        return false;
+    }
+
+    return true;
+}
+
 int main(int argc, char **argv) {
     system("ulimit -s 10000");
 
@@ -413,12 +453,8 @@ int main(int argc, char **argv) {
 
     char *allowed_ip = "127.0.0.1";
 
-    t_client client[CLIENT_NUM] = {
-        0,
-    };
-    Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = {
-        0,
-    };
+    t_client client[CLIENT_NUM] = {0};
+    Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
     t_buf_state buf_state;
 
     check_argc(argc);
@@ -454,48 +490,22 @@ int main(int argc, char **argv) {
                         FD_CLR(target_fd, &w_fd_set);
                         FD_CLR(target_fd, &r_fd_set);
                     }
-                    // TODO : check 함수로 따로 뺄 것,
                     if (buf_state == TRY_WRITE) {
-                        if (!same_as_akey((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader)))) {
-                            make_server_response((SocketHeader *)(client[target_fd].buf),
-                                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
-                                                 RESPONSE_ERROR_AKEY);
-                            ari_title_print_fd(STDERR_FILENO, "akey error", COLOR_RED_CODE);
-                        } else if (!parse_rest_msg((RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
-                                                   &(snddev_policy_header[target_fd]))) {
-                            make_server_response((SocketHeader *)(client[target_fd].buf),
-                                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
-                                                 RESPONSE_ERROR_JSON);
-                            ari_title_print_fd(STDERR_FILENO, "json parse error", COLOR_RED_CODE);
-                        } else {
-                            create_snd_file(snddev_policy_header[target_fd]);
-                            make_server_response((SocketHeader *)(client[target_fd].buf),
-                                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)),
-                                                 RESPONSE_SUCCESS);
-                        }
-                        ari_title_print_fd(STDOUT_FILENO, "send msg", COLOR_YELLOW_CODE);
-
+						validate_rules(client, target_fd, snddev_policy_header);
                         FD_SET(target_fd, &w_fd_set);
                     } else {
                         continue;
                     }
-
                 } else {
-                    connfd = accept(sockfd, (struct sockaddr *)&cli, (socklen_t *)&len);
-                    strcpy(snddev_policy_header[connfd].real_ip, inet_ntoa(cli.sin_addr));
-                    ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
-                    ari_title_print_fd(STDOUT_FILENO, snddev_policy_header[connfd].real_ip, COLOR_GREEN_CODE);
-                    if (strncmp(snddev_policy_header[connfd].real_ip, allowed_ip, strlen(allowed_ip))) {
-                        ari_title_print_fd(STDERR_FILENO, "Not allowed ip", COLOR_RED_CODE);
-                        close(connfd);
-                        continue;
-                    }
-                    if (connfd < 0) {
-                        continue;
-                    }
-                    FD_SET(connfd, &r_fd_set);
-                    set_non_blocking(connfd);
-                    if (fd_max < connfd) fd_max = connfd;
+					if (validate_client_connection(sockfd, &connfd, &cli, allowed_ip, &len, snddev_policy_header)) {
+						FD_SET(connfd, &r_fd_set);
+						set_non_blocking(connfd);
+						if (fd_max < connfd) {
+							fd_max = connfd;
+						}
+					} else {
+						continue;
+					}
                 }
             }
             if (FD_ISSET(target_fd, &w_copy_fd_set)) {
