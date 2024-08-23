@@ -152,8 +152,34 @@ int set_non_blocking(int sockfd) {
     return fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 }
 
+void vaild_argc(int argc) {
+    if (argc != 3) {
+        ari_title_print_fd(STDERR_FILENO, "인자가 다릅니다. ./snd_client [IP] [PORT]", COLOR_RED_CODE);
+        exit(-1);
+    }
+}
+
+int init_socket(int *sock, struct sockaddr_in *server_addr, char **argv) {
+    server_addr->sin_family = AF_INET;
+    server_addr->sin_addr.s_addr = inet_addr(argv[1]);
+    server_addr->sin_port = htons(atoi(argv[2]));
+
+    *sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (*sock == -1) {
+        ari_print_error("socket error", __FILE__, __LINE__);
+        exit(-1);
+    }
+
+    if (connect(*sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+        ari_print_error("connect error", __FILE__, __LINE__);
+        exit(-1);
+    }
+
+    return true;
+}
+
 int main(int argc, char **argv) {
-    key_t key;
+    key_t msg_q_key;
     struct sockaddr_in server_addr;
 
     char msg[BUFSIZ];
@@ -166,41 +192,25 @@ int main(int argc, char **argv) {
     RestMsgType *rest_msg;
     clock_t start;
 
+    vaild_argc(argc);
+
     bzero(&server_addr, sizeof(server_addr));
 
-    if (argc != 3) {
-        ari_title_print_fd(STDERR_FILENO, "인자가 다릅니다. ./snd_client [IP] [PORT]", COLOR_RED_CODE);
-        return (-1);
-    }
-
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(argv[1]);
-    server_addr.sin_port = htons(atoi(argv[2]));
-
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == -1) {
-        ari_print_error("socket error", __FILE__, __LINE__);
-        return (-1);
-    }
-
-    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
-        ari_print_error("connect error", __FILE__, __LINE__);
-        return (-1);
-    }
+    init_socket(&sock, &server_addr, argv);
+    set_non_blocking(sock);
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
-    key = ftok("create_snd_dev_policy", 42);
-    msgid = msgget(key, 0666 | IPC_CREAT);
+    socket_header = (SocketHeader *)msg;
+    rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
-    set_non_blocking(sock);
+    msg_q_key = ftok("create_snd_dev_policy", 42);
+    msgid = msgget(msg_q_key, 0666 | IPC_CREAT);
+
     // TODO : select를 사용해서 멀티 플렉싱 되도록 수정???
 
     while (42) {
         start = clock();
-
-        socket_header = (SocketHeader *)msg;
-        rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
         send_socket(sock, msg, msgid, make_msg);
 
