@@ -10,8 +10,9 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
-
 #include <json-c/json.h>
+#include <ulpLibInterface.h>
+
 #include "libari.h"
 #include "medif_api.h"
 #include "rest_api_message.h"
@@ -74,6 +75,72 @@ typedef struct {
     char *buf_ptr;
     char buf[BUFSIZ];
 } t_client;
+
+static short _esqlopts[10] = {0,0,1,0,0,0,0,0,0,0};
+
+int alti_connect() {
+    /* declare host variables */
+    
+    char* usr="EMG";
+    char* pwd="emg123";
+    char* conn_opt="Server=172.17.0.2;CONNTYPE=1";
+    
+
+    /*** example of setting connection options ***/
+    /*  CONNECT :usr IDENTIFIED BY :pwd USING :conn_opt; */
+{
+    struct ulpSqlstmt ulpSqlstmt;
+    memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
+    ulpHostVar ulpHostVar[3];
+    ulpSqlstmt.hostvalue = ulpHostVar;
+    ulpSqlstmt.stmttype = 1;
+    ulpSqlstmt.stmtname = NULL;
+    ulpSqlstmt.ismt = 0;
+    ulpSqlstmt.sqlinfo = 0;
+    ulpSqlstmt.numofhostvar = 3;
+    ulpSqlstmt.esqlopts    = _esqlopts;
+    ulpSqlstmt.sqlcaerr    = &sqlca;
+    ulpSqlstmt.sqlcodeerr  = &SQLCODE;
+    ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
+    ulpSqlstmt.hostvalue[0].mHostVar = (void*)usr;
+    ulpSqlstmt.hostvalue[1].mHostVar = (void*)pwd;
+    ulpSqlstmt.hostvalue[2].mHostVar = (void*)conn_opt;
+    ulpDoEmsql( NULL, &ulpSqlstmt, NULL );
+}
+
+
+    printf("------------------------------------------------------------------\n");
+    printf("[Connect]\n");
+    printf("------------------------------------------------------------------\n");
+
+    /* check sqlca.sqlcode */
+    return (sqlca.sqlcode == SQL_SUCCESS);
+}
+
+int alti_disconnect() {
+    /*  DISCONNECT; */
+{
+    struct ulpSqlstmt ulpSqlstmt;
+    memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
+    ulpSqlstmt.stmttype = 2;
+    ulpSqlstmt.stmtname = NULL;
+    ulpSqlstmt.ismt = 0;
+    ulpSqlstmt.numofhostvar = 0;
+    ulpSqlstmt.esqlopts    = _esqlopts;
+    ulpSqlstmt.sqlcaerr    = &sqlca;
+    ulpSqlstmt.sqlcodeerr  = &SQLCODE;
+    ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
+    ulpDoEmsql( NULL, &ulpSqlstmt, NULL );
+}
+
+
+    printf("------------------------------------------------------------------\n");
+    printf("[Disconnect]\n");
+    printf("------------------------------------------------------------------\n");
+
+    /* check sqlca.sqlcode */
+    return (sqlca.sqlcode == SQL_SUCCESS);
+}
 
 int same_as_akey(RestLibHeadType *rest_msg) {
     static char *akey = "EMG@an#2345&12980!";
@@ -448,8 +515,6 @@ int send_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set
 }
 
 int main(int argc, char **argv) {
-    system("ulimit -s 10000");
-
     struct sockaddr_in servaddr;
     struct sockaddr_in cli;
 
@@ -468,6 +533,10 @@ int main(int argc, char **argv) {
     check_argc(argc);
 
     sockfd = init_socket(argv[1], &servaddr);
+
+    //fprintf(stderr, "alti connect %d\n", alti_connect());
+    alti_connect();
+    alti_disconnect();
 
     fd_set w_fd_set;
     fd_set r_fd_set;

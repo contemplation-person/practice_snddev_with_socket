@@ -24,6 +24,9 @@ INCLUDE 			:= -Ilibari -Iincludes -Ijson-c
 LIB_DIR 			:= -ljson-c -lari 
 LIB_PATH 			:= -Llibari
 
+INCLUDE+=-I${ALTIBASE_HOME}/include
+LIB_DIR+=-L${ALTIBASE_HOME}/lib -lapre -lodbccli -lpthread -lm -ldl
+
 .PHONY: all clean fclean re test
 
 %.o: %.c
