@@ -45,6 +45,7 @@ clean:
 fclean: clean
 	@$(MAKE) -C libari fclean
 	@$(RM) $(NAME)
+	@$(RM) file_test
 
 re: fclean
 	@$(MAKE) all
