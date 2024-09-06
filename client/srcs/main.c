@@ -170,7 +170,7 @@ int init_socket(int *sock, struct sockaddr_in *server_addr, char **argv) {
         exit(-1);
     }
 
-    if (connect(*sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+    if (connect(*sock, (struct sockaddr *)&server_addr, sizeof(struct sockaddr_in)) != 0) {
         ari_print_error("connect error", __FILE__, __LINE__);
         exit(-1);
     }

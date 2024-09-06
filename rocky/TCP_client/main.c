@@ -161,17 +161,19 @@ void vaild_argc(int argc) {
 
 int init_socket(int *sock, struct sockaddr_in *server_addr, char **argv) {
     server_addr->sin_family = AF_INET;
-    server_addr->sin_addr.s_addr = inet_addr(argv[1]);
+    // server_addr->sin_addr.s_addr = inet_addr(argv[1]);
+    inet_pton(AF_INET, argv[1], &(server_addr->sin_addr));
     server_addr->sin_port = htons(atoi(argv[2]));
 
-    *sock = socket(AF_INET, SOCK_STREAM, 0);
+    *sock = socket(server_addr->sin_family, SOCK_STREAM, 0);
     if (*sock == -1) {
         ari_print_error("socket error", __FILE__, __LINE__);
         exit(-1);
     }
 
-    if (connect(*sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+    if (connect(*sock, (struct sockaddr *)server_addr, sizeof(struct sockaddr_in)) != 0) {
         ari_print_error("connect error", __FILE__, __LINE__);
+        perror("connect");
         exit(-1);
     }
 
