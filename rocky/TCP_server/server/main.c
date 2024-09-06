@@ -420,6 +420,7 @@ int validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli,
     return true;
 }
 
+
 int send_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set) {
     SocketHeader *sockh = (SocketHeader *)(client[target_fd].buf);
     int *current_len = &client[target_fd].curent_len;
@@ -458,7 +459,7 @@ int main(int argc, char **argv) {
     int fd_max;
     int len = sizeof(cli);
 
-    char *allowed_ip = "172.17.0.3";
+    char *allowed_ip = "172.17.0.1";
 
     t_client client[CLIENT_NUM] = {0};
     Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
@@ -485,7 +486,7 @@ int main(int argc, char **argv) {
         w_copy_fd_set = w_fd_set;
         select_cnt = select(fd_max + 1, &r_copy_fd_set, &w_copy_fd_set, NULL, NULL);
 
-        for (int target_fd = 3; target_fd <= fd_max && select_cnt > 0; target_fd++) {
+        for (int target_fd = 3; target_fd <= fd_max ; target_fd++) {
             if (FD_ISSET(target_fd, &r_copy_fd_set)) {
                 select_cnt--;
 
