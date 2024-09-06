@@ -458,7 +458,7 @@ int main(int argc, char **argv) {
     int fd_max;
     int len = sizeof(cli);
 
-    char *allowed_ip = "127.0.0.1";
+    char *allowed_ip = "172.17.0.3";
 
     t_client client[CLIENT_NUM] = {0};
     Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};

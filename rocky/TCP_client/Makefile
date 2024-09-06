@@ -13,7 +13,7 @@
 CC 					:= gcc
 CFLAGS 				:= -Wall -Wextra -Werror  
 
-NAME 				:= snd_server
+NAME 				:= snd_client
 
 SRCS 				:= main.c 
 OBJS 				:= $(SRCS:%.c=%.o)
@@ -47,3 +47,4 @@ re: fclean
 	@$(MAKE) all
 
 CFLAGS += -g3
+
