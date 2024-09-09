@@ -117,7 +117,7 @@ int make_msg(char *msg, int msgid) {
     if (msg_q.msg_type == -1) {
         return false;
     }
-
+    // 여기서 메시지 큐 타입을 받고 공유 메모리에서 빼온다.
     json_len = make_json_body(msg, msg_q.msg);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));

@@ -180,6 +180,8 @@ int main() {
         ari_title_print(alert, COLOR_GREEN_CODE);
 
         if (make_create_snd_dev_policy(&msg_q)) {
+            // 공유 메모리에 저장하기
+            // header만 보내기
             if (msgsnd(msgid, &msg_q, sizeof(msg_q), 0) == -1) {
                 perror("msgsnd");
                 printf("errno : %d, msg_q : %ld\n", errno, sizeof(Msg_queue));
