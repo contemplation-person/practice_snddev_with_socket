@@ -30,24 +30,24 @@ LIB_DIR+=-L${ALTIBASE_HOME}/lib -lapre -lodbccli -lpthread -lm -ldl
 .PHONY: all clean fclean re test
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDE) -c $<
+$(CC) $(CFLAGS) $(INCLUDE) -c $<
 
 $(NAME): $(OBJS)
 	@$(MAKE) -C libari -j8
-	$(CC) $(CFLAGS) $(INCLUDE) $(OBJS) $(LIB_DIR) $(LIB_PATH) -o $(NAME)
+			  $(CC) $(CFLAGS) $(INCLUDE) $(OBJS) $(LIB_DIR) $(LIB_PATH) -o $(NAME)
 
-all: $(NAME)
+					all: $(NAME)
 
-clean:
+					clean:
 	@$(MAKE) -C libari clean
-	@$(RM) $(OBJS)
+@$(RM) $(OBJS)
 
-fclean: clean
+	fclean: clean
 	@$(MAKE) -C libari fclean
-	@$(RM) $(NAME)
+@$(RM) $(NAME)
 	@$(RM) file_test
 
-re: fclean
+	re: fclean
 	@$(MAKE) all
 
 CFLAGS += -g3
