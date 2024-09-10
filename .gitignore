@@ -58,3 +58,7 @@ snd_client
 .vscode/
 DB
 sample
+
+
+.metals/
+.scala-build
