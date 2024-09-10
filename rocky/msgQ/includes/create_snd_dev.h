@@ -27,17 +27,17 @@ typedef struct
     char    device_type[MAX_DEVICE_TYPE];
     char    device_name[MAX_DEVICE_NAME];
     char    serial_number[MAX_SERIAL_NUMBER];
-}Create_snd_dev_policy_list;
+}Snd_dev_policy_list;
 
 typedef struct 
 {
     char                        lte_id[MAX_LTE_ID];
     char                        slice_id[MAX_SLICE_ID];
     int                         max_list_idx;
-    Create_snd_dev_policy_list  create_snd_dev_policy[MAX_CREATE_SND_DEV_POLICY_LIST];
-} Create_snd_dev_policy;
+    Snd_dev_policy_list  create_snd_dev_policy[MAX_CREATE_SND_DEV_POLICY_LIST];
+} Snd_dev_policy;
 
-#define FORECH_ELEMENT(GENERATE_ELEMENT) \
+#define FOREACH_ELEMENT(GENERATE_ELEMENT) \
     GENERATE_ELEMENT(LTE_ID) \
     GENERATE_ELEMENT(SLICE_ID) \
     GENERATE_ELEMENT(AUTH_TYPE) \
@@ -58,19 +58,22 @@ typedef struct
 
 typedef enum
 {
-    FORECH_ELEMENT(GENERATE_ELEMENT_ENUM)
-    MAX_CREATE_SND_DEV_POLICY,
+    FOREACH_ELEMENT(GENERATE_ELEMENT_ENUM)
+    SND_DEV_POLICY_MAX,
 } Create_snd_dev_policy_enum;
 
 typedef struct 
 {
     long msg_type;
-    Create_snd_dev_policy msg;
+    char *msg;
 }Msg_queue;
 
 typedef enum
 {
-    CREATE_SND_DEV_POLICY_TYPE_ENUM = 1,
+    CREATE_SND_DEV_POLICY_ENUM = 1,
+    MODIFY_SND_DEV_POLICY_EMUM,
+    DELETE_SND_DEV_POLICY_ENUM,
+    EMG_MSG_EMUM_MAX
 } Emg_msg_type;
 
 #endif

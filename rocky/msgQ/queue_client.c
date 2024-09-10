@@ -6,9 +6,20 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <unistd.h>
+#include <sys/shm.h>
 
 #include "create_snd_dev.h"
 #include "libari.h"
+
+typedef struct {
+    key_t create_key;
+    key_t modify_key;
+    key_t delete_key;
+
+    int create_id;
+    int modify_id;
+    int delete_id;
+} Shared_memory_keys;
 
 int is_poilcy_string(char *token, int max_len, char *msgType) {
     int token_len = strlen(token);
@@ -28,166 +39,437 @@ int is_poilcy_int(int num, char *msgType) {
     return true;
 }
 
-int make_create_snd_dev_policy(Msg_queue *msg_q) {
-    int num;
-    int read_len;
+char* make_create_snd_dev_policy(char *sdp_msg) {
+    int     num;
+    char*   save_msg;
+    char*   token;
 
-    char csdp_msg[BUFSIZ] = {0};
-    char *save_msg;
-    char *token;
+    Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
 
-    Create_snd_dev_policy_list *csdp_list;
-
-    read_len = read(STDIN_FILENO, csdp_msg, BUFSIZ);
-    if (read_len < 1) {
-        if (read_len == 0) {
-            exit(EXIT_SUCCESS);
-        }
-        printf("read error\n");
-        return false;
-    }
-
-    token = strtok_r(csdp_msg, ", \t\n\r\f\v", &save_msg);
+    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
     if (token == NULL) {
         ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
-        return false;
+        return NULL;
     }
 
     if (is_poilcy_string(token, MAX_LTE_ID, "LTE_ID") == false) {
-        return false;
+        return NULL;
     }
 
-    strcpy(msg_q->msg.lte_id, token);
+    strcpy(sdp->lte_id, token);
 
     // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
-    csdp_list = msg_q->msg.create_snd_dev_policy;
-    msg_q->msg.max_list_idx = 1;
+    sdp->max_list_idx = 1;
 
-    for (int item = SLICE_ID; item < MAX_CREATE_SND_DEV_POLICY; item++) {
+    for (int item = SLICE_ID; item < SND_DEV_POLICY_MAX; item++) {
         token = strtok_r(NULL, ", \t\n\r\f\v", &save_msg);
 
         if (token == NULL) {
             ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
-            return false;
+            return NULL;
         }
 
         switch (item) {
             case SLICE_ID:
                 if (is_poilcy_string(token, MAX_SLICE_ID, "SLICE_ID") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(msg_q->msg.slice_id, token);
+                strcpy(sdp->slice_id, token);
                 break;
             case AUTH_TYPE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "AUTH_TYPE") == false) {
-                    return false;
+                    return NULL;
                 }
-                csdp_list->auth_type = num;
+                sdp->create_snd_dev_policy->auth_type = num;
                 break;
             case TWO_FA_USE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "TWO_FA_USE") == false) {
-                    return false;
+                    return NULL;
                 }
-                csdp_list->two_fa_use = num;
+                sdp->create_snd_dev_policy->two_fa_use = num;
                 break;
             case DEVICE_SUSPEND:
                 num = atoi(token);
                 if (is_poilcy_int(num, "DEVICE_SUSPEND") == false) {
-                    return false;
+                    return NULL;
                 }
-                csdp_list->device_suspend = num;
+                sdp->create_snd_dev_policy->device_suspend = num;
                 break;
             case ID_TYPE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "ID_TYPE") == false) {
-                    return false;
+                    return NULL;
                 }
-                csdp_list->id_type = num;
+                sdp->create_snd_dev_policy->id_type = num;
                 break;
             case IP_POOL_INDEX:
                 num = atoi(token);
                 if (is_poilcy_int(num, "IP_POOL_INDEX") == false) {
-                    return false;
+                    return NULL;
                 }
-                csdp_list->ip_pool_index = num;
+                sdp->create_snd_dev_policy->ip_pool_index = num;
                 break;
             case DEVICE_ID:
                 if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->device_id, token);
+                strcpy(sdp->create_snd_dev_policy->device_id, token);
                 break;
             case MDN:
                 if (is_poilcy_string(token, MAX_MDN, "MDN") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->mdn, token);
+                strcpy(sdp->create_snd_dev_policy->mdn, token);
                 break;
             case IP:
                 if (is_poilcy_string(token, MAX_IP, "IP") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->ip, token);
+                strcpy(sdp->create_snd_dev_policy->ip, token);
                 break;
             case USER_ID:
                 if (is_poilcy_string(token, MAX_USER_ID, "USER_ID") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->user_id, token);
+                strcpy(sdp->create_snd_dev_policy->user_id, token);
                 break;
             case DEVICE_TYPE:
                 if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->device_type, token);
+                strcpy(sdp->create_snd_dev_policy->device_type, token);
                 break;
             case DEVICE_NAME:
                 if (is_poilcy_string(token, MAX_DEVICE_NAME, "DEVICE_NAME") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->device_name, token);
+                strcpy(sdp->create_snd_dev_policy->device_name, token);
                 break;
             case SERIAL_NUMBER:
                 if (is_poilcy_string(token, MAX_SERIAL_NUMBER, "SERIAL_NUMBER") == false) {
-                    return false;
+                    return NULL;
                 }
-                strcpy(csdp_list->serial_number, token);
+                strcpy(sdp->create_snd_dev_policy->serial_number, token);
                 break;
             default:
                 break;
         }
     }
 
-    ari_title_print_fd(STDOUT_FILENO, "Create_snd_dev_policy\n\n", COLOR_GREEN_CODE);
+    ari_title_print_fd(STDOUT_FILENO, "Snd_dev_policy\n\n", COLOR_GREEN_CODE);
+    return (char*)sdp;
+}
+
+char* make_modify_snd_dev_policy(char *sdp_msg) {
+    int     num;
+    char*   save_msg;
+    char*   token;
+
+    Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
+
+    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
+    if (token == NULL) {
+        ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
+        return NULL;
+    }
+
+    if (is_poilcy_string(token, MAX_LTE_ID, "LTE_ID") == false) {
+        return NULL;
+    }
+
+    strcpy(sdp->lte_id, token);
+
+    // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
+    sdp->max_list_idx = 1;
+
+    for (int item = SLICE_ID; item < SND_DEV_POLICY_MAX; item++) {
+        token = strtok_r(NULL, ", \t\n\r\f\v", &save_msg);
+
+        if (token == NULL) {
+            ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
+            return NULL;
+        }
+
+        switch (item) {
+            case SLICE_ID:
+                if (is_poilcy_string(token, MAX_SLICE_ID, "SLICE_ID") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->slice_id, token);
+                break;
+            case AUTH_TYPE:
+                num = atoi(token);
+                if (is_poilcy_int(num, "AUTH_TYPE") == false) {
+                    return NULL;
+                }
+                sdp->create_snd_dev_policy->auth_type = num;
+                break;
+            case TWO_FA_USE:
+                num = atoi(token);
+                if (is_poilcy_int(num, "TWO_FA_USE") == false) {
+                    return NULL;
+                }
+                sdp->create_snd_dev_policy->two_fa_use = num;
+                break;
+            case DEVICE_SUSPEND:
+                num = atoi(token);
+                if (is_poilcy_int(num, "DEVICE_SUSPEND") == false) {
+                    return NULL;
+                }
+                sdp->create_snd_dev_policy->device_suspend = num;
+                break;
+            case ID_TYPE:
+                num = atoi(token);
+                if (is_poilcy_int(num, "ID_TYPE") == false) {
+                    return NULL;
+                }
+                sdp->create_snd_dev_policy->id_type = num;
+                break;
+            case IP_POOL_INDEX:
+                num = atoi(token);
+                if (is_poilcy_int(num, "IP_POOL_INDEX") == false) {
+                    return NULL;
+                }
+                sdp->create_snd_dev_policy->ip_pool_index = num;
+                break;
+            case DEVICE_ID:
+                if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->device_id, token);
+                break;
+            case MDN:
+                if (is_poilcy_string(token, MAX_MDN, "MDN") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->mdn, token);
+                break;
+            case IP:
+                if (is_poilcy_string(token, MAX_IP, "IP") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->ip, token);
+                break;
+            case USER_ID:
+                if (is_poilcy_string(token, MAX_USER_ID, "USER_ID") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->user_id, token);
+                break;
+            case DEVICE_TYPE:
+                if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->device_type, token);
+                break;
+            case DEVICE_NAME:
+                if (is_poilcy_string(token, MAX_DEVICE_NAME, "DEVICE_NAME") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->device_name, token);
+                break;
+            case SERIAL_NUMBER:
+                if (is_poilcy_string(token, MAX_SERIAL_NUMBER, "SERIAL_NUMBER") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->serial_number, token);
+                break;
+            default:
+                break;
+        }
+    }
+
+    ari_title_print_fd(STDOUT_FILENO, "Modify_snd_dev_policy\n\n", COLOR_GREEN_CODE);
+    return (char*)sdp;
+}
+
+char* make_delete_snd_dev_policy(char *sdp_msg) {
+    int     item;
+    char*   save_msg;
+    char*   token;
+
+    Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
+
+    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
+    if (token == NULL) {
+        ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
+        return NULL;
+    }
+
+    if (is_poilcy_string(token, MAX_LTE_ID, "LTE_ID") == false) {
+        return NULL;
+    }
+
+    strcpy(sdp->lte_id, token);
+
+    // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
+    sdp->max_list_idx = 1;
+    item = SLICE_ID;
+    while (item) {
+        token = strtok_r(NULL, ", \t\n\r\f\v", &save_msg);
+
+        if (token == NULL) {
+            ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
+            return NULL;
+        }
+
+        switch (item) {
+            case SLICE_ID:
+                if (is_poilcy_string(token, MAX_SLICE_ID, "SLICE_ID") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->slice_id, token);
+                item = DEVICE_ID;
+                break;
+            case DEVICE_ID:
+                if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->device_id, token);
+                item = DEVICE_TYPE;
+                break;
+            case DEVICE_TYPE:
+                if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
+                    return NULL;
+                }
+                strcpy(sdp->create_snd_dev_policy->device_type, token);
+                item = 0;
+                break;
+        }
+    }
+
+    ari_title_print_fd(STDOUT_FILENO, "Delete_snd_dev_policy\n\n", COLOR_GREEN_CODE);
+    return (char*)sdp;
+}
+
+int read_type(char* msg) {
+    int read_len;
+    int type;
+
+    read_len = read(STDIN_FILENO, msg, BUFSIZ);
+    if (read_len < 0) {
+        fprintf(stderr, "read error\n");
+        return -1;
+    }
+
+    msg[read_len] = '\0';
+
+    type = atoi(msg);
+
+    if (0 < type && type < EMG_MSG_EMUM_MAX) {
+        return type;
+    }
+
+    return 0;
+}
+
+bool display_data_list(int type) {
+    char* alert;
+
+    switch (type) {
+        case CREATE_SND_DEV_POLICY_ENUM:
+            alert = "Usage : LTE_ID, SLICE_ID, AUTH_TYPE, TWO_FA_USE, DEVICE_SUSPEND, \
+                    ID_TYPE, IP_POOL_INDEX, DEVICE_ID, MDN, IP, USER_ID, DEVICE_TYPE, \
+                    DEVICE_NAME, SERIAL_NUMBER\n";
+            break;
+        case MODIFY_SND_DEV_POLICY_EMUM:
+            alert = "Usage : LTE_ID, SLICE_ID, DEVICE_ID, ID_TYPE, MDN, IP_POOL_INDEX, \
+                    IP, AUTH_TYPE, USER_ID, TWO_FA_USE, DEVICE_SUSPEND, DEVICE_TYPE, \
+                    MODEL_NAME, SERIAL_NUM\n";
+            break;
+        case DELETE_SND_DEV_POLICY_ENUM:
+            alert = "Usage : LTEID, SLICE_ID, DEVICE_ID, ID_TYPE\n";
+            break;
+        default:
+            fprintf(stderr, "Invalid type\n");
+            return false;
+    }
+    ari_title_print(alert, COLOR_GREEN_CODE);
+    return true;
+}
+
+bool display_type_list() {
+    char *alert = "Usage\n\
+                CREATE_SND_DEV_POLICY = 1\n\
+                MODIFY_SND_DEV_POLICY = 2\n\
+                DELETE_SND_DEV_POLICY = 3\n";
+    return ari_putstr_fd(alert, STDOUT_FILENO);
+}
+
+bool save_shared_memory_data(int type, Shared_memory_keys shared_memory) {
+    char* ptr;
+    char msg[BUFSIZ] = {0};
+    char *mtype_data;
+
+    if (read(STDIN_FILENO, msg, BUFSIZ) < 0) {
+        perror("read");
+        return false;
+    }
+    switch (type) {
+        case CREATE_SND_DEV_POLICY_ENUM:
+            ptr = shmat(shared_memory.create_id, NULL, 0);
+            mtype_data = make_create_snd_dev_policy(msg);
+            break;
+        case MODIFY_SND_DEV_POLICY_EMUM:
+            ptr = shmat(shared_memory.create_id, NULL, 0);
+            mtype_data = make_modify_snd_dev_policy(msg);
+            break;
+        case DELETE_SND_DEV_POLICY_ENUM:
+            ptr = shmat(shared_memory.create_id, NULL, 0);
+            mtype_data = make_delete_snd_dev_policy(msg);
+            break;
+        default:
+            return false;
+    }
+    if (ptr == (char *)(-1)) {
+        perror("shmat");
+        return false;
+    }
+    snprintf(ptr, sizeof(Msg_queue), "%s", mtype_data);
+    if (shmdt(ptr) == -1) {
+        perror("shmdt");
+        return false; 
+    }
+
     return true;
 }
 
 int main() {
     Msg_queue msg_q;
-    key_t key;
-    int msgid;
-    char *alert =
-        "Usage : LTE_ID, SLICE_ID, AUTH_TYPE, TWO_FA_USE, DEVICE_SUSPEND, ID_TYPE, IP_POOL_INDEX, DEVICE_ID, MDN, IP, "
-        "USER_ID, DEVICE_TYPE, DEVICE_NAME, SERIAL_NUMBER\n";
 
-    key = ftok("msg", 42);
-    msgid = msgget(key, 0666 | IPC_CREAT);
-    msg_q.msg_type = CREATE_SND_DEV_POLICY_TYPE_ENUM;
+    key_t msg_key;
+    int msgid;
+
+    Shared_memory_keys shared_memory;
+
+    char msg[512] = {0};
+
+    msg_key = ftok("emg", 42);
+    msgid = msgget(msg_key, 0666 | IPC_CREAT);
+
+    shared_memory.create_key = ftok("emg", CREATE_SND_DEV_POLICY_ENUM);
+    shared_memory.modify_key = ftok("emg", MODIFY_SND_DEV_POLICY_EMUM);
+    shared_memory.delete_key = ftok("emg", DELETE_SND_DEV_POLICY_ENUM);
+
+    shared_memory.create_id = shmget(shared_memory.create_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
+    shared_memory.modify_id = shmget(shared_memory.modify_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
+    shared_memory.delete_id = shmget(shared_memory.delete_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
 
     while (42) {
-        ari_title_print(alert, COLOR_GREEN_CODE);
+        display_type_list();
+        msg_q.msg_type = read_type(msg);
+        if (display_data_list(msg_q.msg_type) == false) {
+            ari_print_error("display_data_list error", __FILE__, __LINE__);
+            continue;
+        }
 
-        if (make_create_snd_dev_policy(&msg_q)) {
-            // 공유 메모리에 저장하기
-            // header만 보내기
+        if (save_shared_memory_data(msg_q.msg_type, shared_memory)) {
             if (msgsnd(msgid, &msg_q, sizeof(msg_q), 0) == -1) {
                 perror("msgsnd");
-                printf("errno : %d, msg_q : %ld\n", errno, sizeof(Msg_queue));
-                return 1;
+                fprintf(stderr, "plz retry\n");
             }
-            printf("device id :%s\n", msg_q.msg.create_snd_dev_policy[0].device_id);
         }
     }
 
