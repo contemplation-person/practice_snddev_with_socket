@@ -8,18 +8,8 @@
 #include <unistd.h>
 #include <sys/shm.h>
 
-#include "create_snd_dev.h"
+#include "snd_dev.h"
 #include "libari.h"
-
-typedef struct {
-    key_t create_key;
-    key_t modify_key;
-    key_t delete_key;
-
-    int create_id;
-    int modify_id;
-    int delete_id;
-} Shared_memory_keys;
 
 int is_poilcy_string(char *token, int max_len, char *msgType) {
     int token_len = strlen(token);
@@ -43,10 +33,13 @@ char* make_create_snd_dev_policy(char *sdp_msg) {
     int     num;
     char*   save_msg;
     char*   token;
+    char    copy_msg[BUFSIZ];
 
+    memmove(copy_msg, sdp_msg, sizeof(Snd_dev_policy) + 1);
     Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
 
-    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
+
+    token = strtok_r(copy_msg, ", \t\n\r\f\v", &save_msg);
     if (token == NULL) {
         ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
         return NULL;
@@ -55,7 +48,6 @@ char* make_create_snd_dev_policy(char *sdp_msg) {
     if (is_poilcy_string(token, MAX_LTE_ID, "LTE_ID") == false) {
         return NULL;
     }
-
     strcpy(sdp->lte_id, token);
 
     // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
@@ -81,83 +73,82 @@ char* make_create_snd_dev_policy(char *sdp_msg) {
                 if (is_poilcy_int(num, "AUTH_TYPE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->auth_type = num;
+                sdp->snd_dev_policy->auth_type = num;
                 break;
             case TWO_FA_USE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "TWO_FA_USE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->two_fa_use = num;
+                sdp->snd_dev_policy->two_fa_use = num;
                 break;
             case DEVICE_SUSPEND:
                 num = atoi(token);
                 if (is_poilcy_int(num, "DEVICE_SUSPEND") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->device_suspend = num;
+                sdp->snd_dev_policy->device_suspend = num;
                 break;
             case ID_TYPE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "ID_TYPE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->id_type = num;
+                sdp->snd_dev_policy->id_type = num;
                 break;
             case IP_POOL_INDEX:
                 num = atoi(token);
                 if (is_poilcy_int(num, "IP_POOL_INDEX") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->ip_pool_index = num;
+                sdp->snd_dev_policy->ip_pool_index = num;
                 break;
             case DEVICE_ID:
                 if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_id, token);
+                strcpy(sdp->snd_dev_policy->device_id, token);
                 break;
             case MDN:
                 if (is_poilcy_string(token, MAX_MDN, "MDN") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->mdn, token);
+                strcpy(sdp->snd_dev_policy->mdn, token);
                 break;
             case IP:
                 if (is_poilcy_string(token, MAX_IP, "IP") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->ip, token);
+                strcpy(sdp->snd_dev_policy->ip, token);
                 break;
             case USER_ID:
                 if (is_poilcy_string(token, MAX_USER_ID, "USER_ID") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->user_id, token);
+                strcpy(sdp->snd_dev_policy->user_id, token);
                 break;
             case DEVICE_TYPE:
                 if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_type, token);
+                strcpy(sdp->snd_dev_policy->device_type, token);
                 break;
             case DEVICE_NAME:
                 if (is_poilcy_string(token, MAX_DEVICE_NAME, "DEVICE_NAME") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_name, token);
+                strcpy(sdp->snd_dev_policy->device_name, token);
                 break;
             case SERIAL_NUMBER:
                 if (is_poilcy_string(token, MAX_SERIAL_NUMBER, "SERIAL_NUMBER") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->serial_number, token);
+                strcpy(sdp->snd_dev_policy->serial_number, token);
                 break;
             default:
                 break;
         }
     }
-
     ari_title_print_fd(STDOUT_FILENO, "Snd_dev_policy\n\n", COLOR_GREEN_CODE);
     return (char*)sdp;
 }
@@ -166,10 +157,13 @@ char* make_modify_snd_dev_policy(char *sdp_msg) {
     int     num;
     char*   save_msg;
     char*   token;
+    char    copy_msg[BUFSIZ];
+
+    memmove(copy_msg, sdp_msg, sizeof(Snd_dev_policy) + 1);
 
     Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
 
-    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
+    token = strtok_r(copy_msg, ", \t\n\r\f\v", &save_msg);
     if (token == NULL) {
         ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
         return NULL;
@@ -204,77 +198,77 @@ char* make_modify_snd_dev_policy(char *sdp_msg) {
                 if (is_poilcy_int(num, "AUTH_TYPE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->auth_type = num;
+                sdp->snd_dev_policy->auth_type = num;
                 break;
             case TWO_FA_USE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "TWO_FA_USE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->two_fa_use = num;
+                sdp->snd_dev_policy->two_fa_use = num;
                 break;
             case DEVICE_SUSPEND:
                 num = atoi(token);
                 if (is_poilcy_int(num, "DEVICE_SUSPEND") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->device_suspend = num;
+                sdp->snd_dev_policy->device_suspend = num;
                 break;
             case ID_TYPE:
                 num = atoi(token);
                 if (is_poilcy_int(num, "ID_TYPE") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->id_type = num;
+                sdp->snd_dev_policy->id_type = num;
                 break;
             case IP_POOL_INDEX:
                 num = atoi(token);
                 if (is_poilcy_int(num, "IP_POOL_INDEX") == false) {
                     return NULL;
                 }
-                sdp->create_snd_dev_policy->ip_pool_index = num;
+                sdp->snd_dev_policy->ip_pool_index = num;
                 break;
             case DEVICE_ID:
                 if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_id, token);
+                strcpy(sdp->snd_dev_policy->device_id, token);
                 break;
             case MDN:
                 if (is_poilcy_string(token, MAX_MDN, "MDN") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->mdn, token);
+                strcpy(sdp->snd_dev_policy->mdn, token);
                 break;
             case IP:
                 if (is_poilcy_string(token, MAX_IP, "IP") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->ip, token);
+                strcpy(sdp->snd_dev_policy->ip, token);
                 break;
             case USER_ID:
                 if (is_poilcy_string(token, MAX_USER_ID, "USER_ID") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->user_id, token);
+                strcpy(sdp->snd_dev_policy->user_id, token);
                 break;
             case DEVICE_TYPE:
                 if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_type, token);
+                strcpy(sdp->snd_dev_policy->device_type, token);
                 break;
             case DEVICE_NAME:
                 if (is_poilcy_string(token, MAX_DEVICE_NAME, "DEVICE_NAME") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_name, token);
+                strcpy(sdp->snd_dev_policy->device_name, token);
                 break;
             case SERIAL_NUMBER:
                 if (is_poilcy_string(token, MAX_SERIAL_NUMBER, "SERIAL_NUMBER") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->serial_number, token);
+                strcpy(sdp->snd_dev_policy->serial_number, token);
                 break;
             default:
                 break;
@@ -289,10 +283,13 @@ char* make_delete_snd_dev_policy(char *sdp_msg) {
     int     item;
     char*   save_msg;
     char*   token;
+    char    copy_msg[BUFSIZ];
+
+    memmove(copy_msg, sdp_msg, sizeof(Snd_dev_policy) + 1);
 
     Snd_dev_policy *sdp = (Snd_dev_policy*)sdp_msg;
 
-    token = strtok_r(sdp_msg, ", \t\n\r\f\v", &save_msg);
+    token = strtok_r(copy_msg, ", \t\n\r\f\v", &save_msg);
     if (token == NULL) {
         ari_title_print_fd(STDOUT_FILENO, "Input argument count must match the format.\n", COLOR_RED_CODE);
         return NULL;
@@ -327,14 +324,14 @@ char* make_delete_snd_dev_policy(char *sdp_msg) {
                 if (is_poilcy_string(token, MAX_DEVICE_ID, "DEVICE_ID") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_id, token);
+                strcpy(sdp->snd_dev_policy->device_id, token);
                 item = DEVICE_TYPE;
                 break;
             case DEVICE_TYPE:
                 if (is_poilcy_string(token, MAX_DEVICE_TYPE, "DEVICE_TYPE") == false) {
                     return NULL;
                 }
-                strcpy(sdp->create_snd_dev_policy->device_type, token);
+                strcpy(sdp->snd_dev_policy->device_type, token);
                 item = 0;
                 break;
         }
@@ -398,8 +395,7 @@ bool display_type_list() {
     return ari_putstr_fd(alert, STDOUT_FILENO);
 }
 
-bool save_shared_memory_data(int type, Shared_memory_keys shared_memory) {
-    char* ptr;
+bool save_shared_memory_data(int type, Snd_dev_policy* shared_msg) {
     char msg[BUFSIZ] = {0};
     char *mtype_data;
 
@@ -409,30 +405,23 @@ bool save_shared_memory_data(int type, Shared_memory_keys shared_memory) {
     }
     switch (type) {
         case CREATE_SND_DEV_POLICY_ENUM:
-            ptr = shmat(shared_memory.create_id, NULL, 0);
             mtype_data = make_create_snd_dev_policy(msg);
             break;
         case MODIFY_SND_DEV_POLICY_EMUM:
-            ptr = shmat(shared_memory.create_id, NULL, 0);
             mtype_data = make_modify_snd_dev_policy(msg);
             break;
         case DELETE_SND_DEV_POLICY_ENUM:
-            ptr = shmat(shared_memory.create_id, NULL, 0);
             mtype_data = make_delete_snd_dev_policy(msg);
             break;
         default:
             return false;
     }
-    if (ptr == (char *)(-1)) {
-        perror("shmat");
+
+    if (mtype_data == NULL) {
         return false;
     }
-    snprintf(ptr, sizeof(Msg_queue), "%s", mtype_data);
-    if (shmdt(ptr) == -1) {
-        perror("shmdt");
-        return false; 
-    }
 
+    memmove(shared_msg, mtype_data, sizeof(Snd_dev_policy));
     return true;
 }
 
@@ -442,20 +431,31 @@ int main() {
     key_t msg_key;
     int msgid;
 
-    Shared_memory_keys shared_memory;
+    key_t shared_key;
+    int shared_id;
+    Snd_dev_policy *shared_msg;
 
     char msg[512] = {0};
 
-    msg_key = ftok("emg", 42);
+    msg_key = ftok("/tmp/emg", 42);
     msgid = msgget(msg_key, 0666 | IPC_CREAT);
 
-    shared_memory.create_key = ftok("emg", CREATE_SND_DEV_POLICY_ENUM);
-    shared_memory.modify_key = ftok("emg", MODIFY_SND_DEV_POLICY_EMUM);
-    shared_memory.delete_key = ftok("emg", DELETE_SND_DEV_POLICY_ENUM);
-
-    shared_memory.create_id = shmget(shared_memory.create_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
-    shared_memory.modify_id = shmget(shared_memory.modify_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
-    shared_memory.delete_id = shmget(shared_memory.delete_key, sizeof(Msg_queue), 0666 | IPC_CREAT);
+    shared_key = ftok("/tmp/emg", 24);
+    if (shared_key == -1) {
+        perror("ftok");
+        return false;
+    }
+    shared_id = shmget(shared_key, sizeof(Snd_dev_policy), 0666 | IPC_CREAT);
+    if (shared_id == -1) {
+        perror("shmget");
+        printf("errno : %d\n", errno);
+        return false;
+    }
+    shared_msg = shmat(shared_id, NULL, 0);
+    if (shared_msg == (Snd_dev_policy*)(-1)) {
+        perror("shmat");
+        return false;
+    }
 
     while (42) {
         display_type_list();
@@ -465,7 +465,7 @@ int main() {
             continue;
         }
 
-        if (save_shared_memory_data(msg_q.msg_type, shared_memory)) {
+        if (save_shared_memory_data(msg_q.msg_type, shared_msg)) {
             if (msgsnd(msgid, &msg_q, sizeof(msg_q), 0) == -1) {
                 perror("msgsnd");
                 fprintf(stderr, "plz retry\n");

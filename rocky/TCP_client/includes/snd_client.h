@@ -4,7 +4,7 @@
 #include "libari.h"
 #include "rest_api_message.h"
 #include "medif_api.h"
-#include "create_snd_dev.h"
+#include "snd_dev.h"
 
 #include <json-c/json.h>
 
@@ -19,6 +19,7 @@
 #include <time.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
-#include "stdbool.h"
+#include <stdbool.h>
+#include <sys/shm.h>
 
 #endif

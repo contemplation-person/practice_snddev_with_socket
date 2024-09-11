@@ -34,8 +34,14 @@ typedef struct
     char                        lte_id[MAX_LTE_ID];
     char                        slice_id[MAX_SLICE_ID];
     int                         max_list_idx;
-    Snd_dev_policy_list  create_snd_dev_policy[MAX_CREATE_SND_DEV_POLICY_LIST];
+    Snd_dev_policy_list         snd_dev_policy[MAX_CREATE_SND_DEV_POLICY_LIST];
 } Snd_dev_policy;
+
+typedef struct 
+{
+    long msg_type;
+    char *msg;
+}Msg_queue;
 
 #define FOREACH_ELEMENT(GENERATE_ELEMENT) \
     GENERATE_ELEMENT(LTE_ID) \
@@ -61,12 +67,6 @@ typedef enum
     FOREACH_ELEMENT(GENERATE_ELEMENT_ENUM)
     SND_DEV_POLICY_MAX,
 } Create_snd_dev_policy_enum;
-
-typedef struct 
-{
-    long msg_type;
-    char *msg;
-}Msg_queue;
 
 typedef enum
 {
