@@ -1,146 +1,4 @@
-#include <arpa/inet.h>
-#include <stdbool.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <time.h>
-#include <unistd.h>
-#include <json-c/json.h>
-#include <ulpLibInterface.h>
-
-#include "libari.h"
-#include "medif_api.h"
-#include "rest_api_message.h"
-
-#define CLIENT_NUM 1025
-#define MAX_DEVICE_ID_LEN 18
-#define MAX_MDN_LEN 12
-#define MAX_IP_LEN 40
-#define MAX_USER_ID_LEN 23
-#define MAX_DEVICE_TYPE_LEN 11
-#define MAX_DEVICE_NAME_LEN 31
-#define MAX_SERIAL_NUMBER_LEN 31
-
-typedef enum {
-    RESPONSE_SUCCESS = 1,
-    RESPONSE_ERROR_AKEY,
-    RESPONSE_ERROR_JSON,
-} Res_code_type;
-
-typedef enum { 
-	TRY_RECV_SOCKET_HEADER, 
-	TRY_RECV_BODY, 
-	TRY_WRITE, 
-	LEAVE_CLIENT, 
-	SND_FATAL_ERROR 
-} t_buf_state;
-
-typedef struct s_create_snddev_policy_list {
-    int auth_type;
-    int two_fa_use;
-    int device_suspend;
-    int id_type;
-    int ip_pool_index;
-
-    char device_id[MAX_DEVICE_ID_LEN];
-    char mdn[MAX_MDN_LEN];
-    char ip[MAX_IP_LEN];
-    char user_id[MAX_USER_ID_LEN];
-    char device_type[MAX_DEVICE_TYPE_LEN];
-
-    char device_name[MAX_DEVICE_NAME_LEN];
-    char serial_number[MAX_SERIAL_NUMBER_LEN];
-    struct s_create_snddev_policy_list *next;
-} Create_snddev_policy_list;
-
-typedef struct {
-    char lte[20];
-    char slice_id[4];
-    char real_ip[39];
-
-    Create_snddev_policy_list *create_snddev_policy_start_list;
-    Create_snddev_policy_list *create_snddev_policy_end_list;
-} Create_snddev_policy_header;
-
-typedef struct {
-    t_buf_state buf_state;
-
-    int curent_len;
-
-    char *buf_ptr;
-    char buf[BUFSIZ];
-} t_client;
-
-static short _esqlopts[10] = {0,0,1,0,0,0,0,0,0,0};
-
-int alti_connect() {
-    /* declare host variables */
-    
-    char* usr="EMG";
-    char* pwd="emg123";
-    char* conn_opt="Server=172.17.0.2;CONNTYPE=1";
-    
-
-    /*** example of setting connection options ***/
-    /*  CONNECT :usr IDENTIFIED BY :pwd USING :conn_opt; */
-{
-    struct ulpSqlstmt ulpSqlstmt;
-    memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
-    ulpHostVar ulpHostVar[3];
-    ulpSqlstmt.hostvalue = ulpHostVar;
-    ulpSqlstmt.stmttype = 1;
-    ulpSqlstmt.stmtname = NULL;
-    ulpSqlstmt.ismt = 0;
-    ulpSqlstmt.sqlinfo = 0;
-    ulpSqlstmt.numofhostvar = 3;
-    ulpSqlstmt.esqlopts    = _esqlopts;
-    ulpSqlstmt.sqlcaerr    = &sqlca;
-    ulpSqlstmt.sqlcodeerr  = &SQLCODE;
-    ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
-    ulpSqlstmt.hostvalue[0].mHostVar = (void*)usr;
-    ulpSqlstmt.hostvalue[1].mHostVar = (void*)pwd;
-    ulpSqlstmt.hostvalue[2].mHostVar = (void*)conn_opt;
-    ulpDoEmsql( NULL, &ulpSqlstmt, NULL );
-}
-
-
-    printf("------------------------------------------------------------------\n");
-    printf("[Connect]\n");
-    printf("------------------------------------------------------------------\n");
-
-    /* check sqlca.sqlcode */
-    return (sqlca.sqlcode == SQL_SUCCESS);
-}
-
-int alti_disconnect() {
-    /*  DISCONNECT; */
-{
-    struct ulpSqlstmt ulpSqlstmt;
-    memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
-    ulpSqlstmt.stmttype = 2;
-    ulpSqlstmt.stmtname = NULL;
-    ulpSqlstmt.ismt = 0;
-    ulpSqlstmt.numofhostvar = 0;
-    ulpSqlstmt.esqlopts    = _esqlopts;
-    ulpSqlstmt.sqlcaerr    = &sqlca;
-    ulpSqlstmt.sqlcodeerr  = &SQLCODE;
-    ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
-    ulpDoEmsql( NULL, &ulpSqlstmt, NULL );
-}
-
-
-    printf("------------------------------------------------------------------\n");
-    printf("[Disconnect]\n");
-    printf("------------------------------------------------------------------\n");
-
-    /* check sqlca.sqlcode */
-    return (sqlca.sqlcode == SQL_SUCCESS);
-}
+#include "snd.h"
 
 int same_as_akey(RestLibHeadType *rest_msg) {
     static char *akey = "EMG@an#2345&12980!";
@@ -253,8 +111,8 @@ int init_socket(char *port, struct sockaddr_in *servaddr) {
     return sockfd;
 }
 
-int new_create_snddev_policy_list(Create_snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj) {
-    Create_snddev_policy_list *new_list = (Create_snddev_policy_list *)malloc(sizeof(Create_snddev_policy_list));
+int new_create_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj) {
+    Snddev_policy_list *new_list = (Snddev_policy_list *)malloc(sizeof(Snddev_policy_list));
 
     if (!new_list) {
         fprintf(stderr, "malloc error: %s\n", strerror(errno));
@@ -287,7 +145,7 @@ int new_create_snddev_policy_list(Create_snddev_policy_header *snddev_policy_hea
     return 1;
 }
 
-int parse_json_list(struct json_object *parsed_json, Create_snddev_policy_header *snddev_policy_header) {
+int parse_json_list(struct json_object *parsed_json, Snddev_policy_header *snddev_policy_header) {
     struct json_object *csp_list;
     struct json_object *csp_list_obj;
     int list_len;
@@ -315,7 +173,7 @@ void ari_json_object_print(json_object *json) {
     ari_putendl_fd(print_string, 1);
 }
 
-void parse_json_header(struct json_object *parsed_json, Create_snddev_policy_header *snddev_policy) {
+void parse_json_header(struct json_object *parsed_json, Snddev_policy_header *snddev_policy) {
     struct json_object *lte_id;
     struct json_object *slice_id;
 
@@ -328,7 +186,7 @@ void parse_json_header(struct json_object *parsed_json, Create_snddev_policy_hea
     }
 }
 
-int parse_rest_msg(RestMsgType *rest_msg, Create_snddev_policy_header *snddev_policy) {
+int parse_rest_msg(RestMsgType *rest_msg, Snddev_policy_header *snddev_policy) {
     struct json_object *parsed_json;
 
     parsed_json = json_tokener_parse(rest_msg->jsonBody);
@@ -349,10 +207,10 @@ int parse_rest_msg(RestMsgType *rest_msg, Create_snddev_policy_header *snddev_po
     return 1;
 }
 
-int create_snd_file(Create_snddev_policy_header snddev_policy) {
+int create_snd_file(Snddev_policy_header snddev_policy) {
     char file_name[100] = {0};
     int file_num = 0;
-    Create_snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
+    Snddev_policy_list *csp_list = snddev_policy.create_snddev_policy_start_list;
     FILE *fp;
     struct tm t;
 
@@ -399,9 +257,9 @@ int create_snd_file(Create_snddev_policy_header snddev_policy) {
     return 1;
 }
 
-void clear_csp_list(Create_snddev_policy_header *snddev_policy_header) {
-    Create_snddev_policy_list *csp_list = snddev_policy_header->create_snddev_policy_start_list;
-    Create_snddev_policy_list *next;
+void clear_csp_list(Snddev_policy_header *snddev_policy_header) {
+    Snddev_policy_list *csp_list = snddev_policy_header->create_snddev_policy_start_list;
+    Snddev_policy_list *next;
 
     while (csp_list) {
         next = csp_list->next;
@@ -448,7 +306,7 @@ void init_client(t_client *client) {
     }
 }
 
-void validate_rules(t_client *client, int target_fd, Create_snddev_policy_header *snddev_policy_header) {
+void validate_rules(t_client *client, int target_fd, Snddev_policy_header *snddev_policy_header) {
     if (!same_as_akey((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader)))) {
         make_server_response((SocketHeader *)(client[target_fd].buf),
                              (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_AKEY);
@@ -459,6 +317,9 @@ void validate_rules(t_client *client, int target_fd, Create_snddev_policy_header
                              (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_JSON);
         ari_title_print_fd(STDERR_FILENO, "json parse error", COLOR_RED_CODE);
     } else {
+        // altibase create
+        // altibase update
+        // altibase delete
         create_snd_file(snddev_policy_header[target_fd]);
         make_server_response((SocketHeader *)(client[target_fd].buf),
                              (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_SUCCESS);
@@ -467,11 +328,11 @@ void validate_rules(t_client *client, int target_fd, Create_snddev_policy_header
 
 }
 /**
- * @param sph : Create_snddev_policy_header
+ * @param sph : Snddev_policy_header
  * @return boolean 
  */
 int validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli, char *allowed_ip, int *len,
-                               Create_snddev_policy_header *sph) {
+                               Snddev_policy_header *sph) {
     *connfd = accept(sockfd, (struct sockaddr *)cli, (socklen_t *)len);
 
     strcpy(sph[*connfd].real_ip, inet_ntoa(cli->sin_addr));
@@ -527,7 +388,7 @@ int main(int argc, char **argv) {
     char *allowed_ip = "172.17.0.1";
 
     t_client client[CLIENT_NUM] = {0};
-    Create_snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
+    Snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
     t_buf_state buf_state;
 
     check_argc(argc);

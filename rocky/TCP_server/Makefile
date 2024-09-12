@@ -9,7 +9,7 @@ build:
 run:
 	docker run -it -p 4242:4242 -v "./server:/tcp_server" tcp_server 
 start:
-	docker start  61fa82 && docker exec -it  61fa82 /bin/zsh
+	docker start 3b8a6  && docker exec -it  3b8a6   /bin/zsh
 
 fclean:
 	docker rmi altibase_db
