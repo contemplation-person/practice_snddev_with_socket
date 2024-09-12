@@ -29,9 +29,17 @@ int make_rest_header(char *msg, int json_len) {
     return sizeof(RestLibHeadType);
 }
 
-json_object *make_object(Create_snd_dev_policy_list item) {
+json_object *make_object(Snd_dev_policy_list item, int mType) {
     json_object *obj_item = json_object_new_object();
-    char *item_str_arr[] = {FORECH_ELEMENT(GENERATE_ELEMENT_STRING)};
+    char *item_str_arr[] = {FOREACH_ELEMENT(GENERATE_ELEMENT_STRING)};
+
+    if (item.device_id)
+        json_object_object_add(obj_item, item_str_arr[DEVICE_ID], json_object_new_string(item.device_id));
+    if (item.device_type)
+        json_object_object_add(obj_item, item_str_arr[DEVICE_TYPE], json_object_new_string(item.device_type));
+
+    if (mType == DELETE_SND_DEV_POLICY_ENUM) 
+        return obj_item;
 
     json_object_object_add(obj_item, item_str_arr[AUTH_TYPE], json_object_new_int(item.auth_type));
     json_object_object_add(obj_item, item_str_arr[TWO_FA_USE], json_object_new_int(item.two_fa_use));
@@ -39,13 +47,9 @@ json_object *make_object(Create_snd_dev_policy_list item) {
     json_object_object_add(obj_item, item_str_arr[ID_TYPE], json_object_new_int(item.id_type));
     json_object_object_add(obj_item, item_str_arr[IP_POOL_INDEX], json_object_new_int(item.ip_pool_index));
 
-    if (item.device_id)
-        json_object_object_add(obj_item, item_str_arr[DEVICE_ID], json_object_new_string(item.device_id));
     if (item.mdn) json_object_object_add(obj_item, item_str_arr[MDN], json_object_new_string(item.mdn));
     if (item.ip) json_object_object_add(obj_item, item_str_arr[IP], json_object_new_string(item.ip));
     if (item.user_id) json_object_object_add(obj_item, item_str_arr[USER_ID], json_object_new_string(item.user_id));
-    if (item.device_type)
-        json_object_object_add(obj_item, item_str_arr[DEVICE_TYPE], json_object_new_string(item.device_type));
     if (item.device_name)
         json_object_object_add(obj_item, item_str_arr[DEVICE_NAME], json_object_new_string(item.device_name));
     if (item.serial_number)
@@ -61,20 +65,20 @@ void ari_json_object_print(json_object *json) {
 }
 
 /*
-*@param csdp : Create_snd_dev_policy 구조체
+*@param sdp : snd_dev_policy 구조체
 */
-int make_json_body(char *msg, Create_snd_dev_policy csdp) {
+int make_json_body(char *msg, Snd_dev_policy *sdp, int mType) {
     json_object *json_root = json_object_new_object();
     int json_len;
     char *target_buf;
 
-    json_object_object_add(json_root, "LTEID", json_object_new_string(csdp.lte_id));
-    json_object_object_add(json_root, "SLICE_ID", json_object_new_string(csdp.slice_id));
+    json_object_object_add(json_root, "LTEID", json_object_new_string(sdp->lte_id));
+    json_object_object_add(json_root, "SLICE_ID", json_object_new_string(sdp->slice_id));
 
     json_object *json_array = json_object_new_array();
 
-    for (int idx = 0; idx < csdp.max_list_idx; idx++) {
-        json_object_array_add(json_array, make_object(csdp.create_snd_dev_policy[idx]));
+    for (int idx = 0; idx < sdp->max_list_idx; idx++) {
+        json_object_array_add(json_array, make_object(sdp->snd_dev_policy[idx], mType));
     }
 
     json_object_object_add(json_root, "list", json_array);
@@ -110,21 +114,21 @@ Msg_queue get_msg_queue(int msgid) {
     return msg_queue;
 }
 
-int make_msg(char *msg, int msgid) {
+int make_msg(char* msg, int msgid, Snd_dev_policy* shared_msg) {
     int json_len;
     Msg_queue msg_q = get_msg_queue(msgid);
 
-    if (msg_q.msg_type == -1) {
+    if (CREATE_SND_DEV_POLICY_ENUM > msg_q.msg_type || msg_q.msg_type > DELETE_SND_DEV_POLICY_ENUM) {
         return false;
     }
-    // 여기서 메시지 큐 타입을 받고 공유 메모리에서 빼온다.
-    json_len = make_json_body(msg, msg_q.msg);
+
+    json_len = make_json_body(msg, (Snd_dev_policy *)shared_msg, msg_q.msg_type);
 
     return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
-int send_socket(int sockfd, char *msg, int msgid, int (*make_msg)(char *, int)) {
-    int total_len = make_msg(msg, msgid);
+int send_socket(int sockfd, char *msg, int msgid, Snd_dev_policy *shared_msg, int (*make_msg)(char *, int, Snd_dev_policy*)) {
+    int total_len = make_msg(msg, msgid, shared_msg);
     int send_len = 0;
 
     if (total_len == false) {
@@ -190,6 +194,10 @@ int main(int argc, char **argv) {
     int msgid;
     int recv_len;
 
+    int shared_id;
+    key_t shared_key;
+    Snd_dev_policy *shared_msg;
+
     SocketHeader *socket_header;
     RestMsgType *rest_msg;
     clock_t start;
@@ -206,15 +214,33 @@ int main(int argc, char **argv) {
     socket_header = (SocketHeader *)msg;
     rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
-    msg_q_key = ftok("create_snd_dev_policy", 42);
+    msg_q_key = ftok("/tmp/emg", 42);
     msgid = msgget(msg_q_key, 0666 | IPC_CREAT);
+
+    shared_key = ftok("/tmp/emg", 24);
+    if (shared_key == -1) {
+        perror("ftok");
+        return false;
+    }
+
+    shared_id = shmget(shared_key, sizeof(Snd_dev_policy), 0666);
+    if  (shared_id == -1) {
+        perror("shmget");
+        return false;
+    }
+    shared_msg = shmat(shared_id, NULL, 0);
+    if (shared_msg == (Snd_dev_policy *)(-1)) {
+        perror("shmat");
+    
+        return false;
+    }
 
     // TODO : select를 사용해서 멀티 플렉싱 되도록 수정???
 
     while (42) {
         start = clock();
 
-        send_socket(sock, msg, msgid, make_msg);
+        send_socket(sock, msg, msgid, shared_msg, make_msg);
 
         // TODO : recv가 partial read 일 때 처리
         recv_len = recv(sock, msg, BUFSIZ, 0);
