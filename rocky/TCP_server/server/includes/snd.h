@@ -79,7 +79,7 @@ typedef struct {
     char buf[BUFSIZ];
 } t_client;
 
-
+int insert_sql(Emg_type struct_code);
 int alti_connect(); 
 int alti_disconnect();
 
