@@ -13,6 +13,8 @@ typedef struct {
     char DEVICE_TYPE[12];   // VARCHAR(11) + 1
     char MODEL_NAME[32];    // VARCHAR(31) + 1
     char SERIAL_NUM[32];    // VARCHAR(31) + 1
+    char DEVICE_ID[18];     // VARCHAR(17) + 1
+    int  ID_TYPE;           // INTEGER
 } Emg_type;
 
 EXEC SQL END DECLARE SECTION;
