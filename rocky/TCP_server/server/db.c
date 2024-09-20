@@ -57,23 +57,22 @@ int alti_disconnect() {
 }
 
 // LTEID가 UNIQUE CODE
-int insert_sql(Emg_type struct_code) {
-    Emg_type emg = struct_code;
-
+int insert_sql(Emg_type emg) {
     /*  INSERT INTO SUBUE_TBL VALUES (:emg); */
     {
         struct ulpSqlstmt ulpSqlstmt;
         memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
-        ulpHostVar ulpHostVar[12];
+        ulpHostVar ulpHostVar[14];
         ulpSqlstmt.hostvalue = ulpHostVar;
         ulpSqlstmt.stmttype = 3;
         ulpSqlstmt.stmtname = NULL;
         ulpSqlstmt.ismt = 0;
-        ulpSqlstmt.numofhostvar = 12;
+        ulpSqlstmt.numofhostvar = 14;
         ulpSqlstmt.statusptr = NULL;
         ulpSqlstmt.errcodeptr = NULL;
         ulpSqlstmt.isatomic = 0;
-        ulpSqlstmt.stmt = (char *)"INSERT INTO SUBUE_TBL VALUES (? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )";
+        ulpSqlstmt.stmt =
+            (char*)"INSERT INTO SUBUE_TBL VALUES (? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )";
         ulpSqlstmt.iters = 0;
         ulpSqlstmt.sqlinfo = 0;
         ulpSqlstmt.scrollcur = 0;
@@ -84,7 +83,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.sqlcaerr = &sqlca;
         ulpSqlstmt.sqlcodeerr = &SQLCODE;
         ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
-        ulpSqlstmt.hostvalue[0].mHostVar = (void *)(emg.LTEID);
+        ulpSqlstmt.hostvalue[0].mHostVar = (void*)(emg.LTEID);
         ulpSqlstmt.hostvalue[0].mHostInd = NULL;
         ulpSqlstmt.hostvalue[0].isstruct = 1;
         ulpSqlstmt.hostvalue[0].structsize = sizeof(emg);
@@ -96,7 +95,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[0].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[0].mInOut = (short)0;
         ulpSqlstmt.hostvalue[0].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[1].mHostVar = (void *)(emg.SLICE_ID);
+        ulpSqlstmt.hostvalue[1].mHostVar = (void*)(emg.SLICE_ID);
         ulpSqlstmt.hostvalue[1].mHostInd = NULL;
         ulpSqlstmt.hostvalue[1].isstruct = 1;
         ulpSqlstmt.hostvalue[1].structsize = sizeof(emg);
@@ -108,7 +107,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[1].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[1].mInOut = (short)0;
         ulpSqlstmt.hostvalue[1].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[2].mHostVar = (void *)(emg.MDN);
+        ulpSqlstmt.hostvalue[2].mHostVar = (void*)(emg.MDN);
         ulpSqlstmt.hostvalue[2].mHostInd = NULL;
         ulpSqlstmt.hostvalue[2].isstruct = 1;
         ulpSqlstmt.hostvalue[2].structsize = sizeof(emg);
@@ -120,7 +119,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[2].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[2].mInOut = (short)0;
         ulpSqlstmt.hostvalue[2].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[3].mHostVar = (void *)&(emg.IP_POOL_INDEX);
+        ulpSqlstmt.hostvalue[3].mHostVar = (void*)&(emg.IP_POOL_INDEX);
         ulpSqlstmt.hostvalue[3].mHostInd = NULL;
         ulpSqlstmt.hostvalue[3].isstruct = 1;
         ulpSqlstmt.hostvalue[3].structsize = sizeof(emg);
@@ -132,7 +131,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[3].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[3].mInOut = (short)0;
         ulpSqlstmt.hostvalue[3].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[4].mHostVar = (void *)(emg.IP);
+        ulpSqlstmt.hostvalue[4].mHostVar = (void*)(emg.IP);
         ulpSqlstmt.hostvalue[4].mHostInd = NULL;
         ulpSqlstmt.hostvalue[4].isstruct = 1;
         ulpSqlstmt.hostvalue[4].structsize = sizeof(emg);
@@ -144,7 +143,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[4].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[4].mInOut = (short)0;
         ulpSqlstmt.hostvalue[4].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[5].mHostVar = (void *)&(emg.AUTH_TYPE);
+        ulpSqlstmt.hostvalue[5].mHostVar = (void*)&(emg.AUTH_TYPE);
         ulpSqlstmt.hostvalue[5].mHostInd = NULL;
         ulpSqlstmt.hostvalue[5].isstruct = 1;
         ulpSqlstmt.hostvalue[5].structsize = sizeof(emg);
@@ -156,7 +155,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[5].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[5].mInOut = (short)0;
         ulpSqlstmt.hostvalue[5].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[6].mHostVar = (void *)(emg.USER_ID);
+        ulpSqlstmt.hostvalue[6].mHostVar = (void*)(emg.USER_ID);
         ulpSqlstmt.hostvalue[6].mHostInd = NULL;
         ulpSqlstmt.hostvalue[6].isstruct = 1;
         ulpSqlstmt.hostvalue[6].structsize = sizeof(emg);
@@ -168,7 +167,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[6].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[6].mInOut = (short)0;
         ulpSqlstmt.hostvalue[6].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[7].mHostVar = (void *)&(emg.TWOFA_USE);
+        ulpSqlstmt.hostvalue[7].mHostVar = (void*)&(emg.TWOFA_USE);
         ulpSqlstmt.hostvalue[7].mHostInd = NULL;
         ulpSqlstmt.hostvalue[7].isstruct = 1;
         ulpSqlstmt.hostvalue[7].structsize = sizeof(emg);
@@ -180,7 +179,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[7].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[7].mInOut = (short)0;
         ulpSqlstmt.hostvalue[7].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[8].mHostVar = (void *)&(emg.DEVICE_SUSPEND);
+        ulpSqlstmt.hostvalue[8].mHostVar = (void*)&(emg.DEVICE_SUSPEND);
         ulpSqlstmt.hostvalue[8].mHostInd = NULL;
         ulpSqlstmt.hostvalue[8].isstruct = 1;
         ulpSqlstmt.hostvalue[8].structsize = sizeof(emg);
@@ -192,7 +191,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[8].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[8].mInOut = (short)0;
         ulpSqlstmt.hostvalue[8].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[9].mHostVar = (void *)(emg.DEVICE_TYPE);
+        ulpSqlstmt.hostvalue[9].mHostVar = (void*)(emg.DEVICE_TYPE);
         ulpSqlstmt.hostvalue[9].mHostInd = NULL;
         ulpSqlstmt.hostvalue[9].isstruct = 1;
         ulpSqlstmt.hostvalue[9].structsize = sizeof(emg);
@@ -204,7 +203,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[9].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[9].mInOut = (short)0;
         ulpSqlstmt.hostvalue[9].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[10].mHostVar = (void *)(emg.MODEL_NAME);
+        ulpSqlstmt.hostvalue[10].mHostVar = (void*)(emg.MODEL_NAME);
         ulpSqlstmt.hostvalue[10].mHostInd = NULL;
         ulpSqlstmt.hostvalue[10].isstruct = 1;
         ulpSqlstmt.hostvalue[10].structsize = sizeof(emg);
@@ -216,7 +215,7 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[10].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[10].mInOut = (short)0;
         ulpSqlstmt.hostvalue[10].mIsDynAlloc = (short)0;
-        ulpSqlstmt.hostvalue[11].mHostVar = (void *)(emg.SERIAL_NUM);
+        ulpSqlstmt.hostvalue[11].mHostVar = (void*)(emg.SERIAL_NUM);
         ulpSqlstmt.hostvalue[11].mHostInd = NULL;
         ulpSqlstmt.hostvalue[11].isstruct = 1;
         ulpSqlstmt.hostvalue[11].structsize = sizeof(emg);
@@ -228,6 +227,107 @@ int insert_sql(Emg_type struct_code) {
         ulpSqlstmt.hostvalue[11].mUnsign = (short)0;
         ulpSqlstmt.hostvalue[11].mInOut = (short)0;
         ulpSqlstmt.hostvalue[11].mIsDynAlloc = (short)0;
+        ulpSqlstmt.hostvalue[12].mHostVar = (void*)(emg.DEVICE_ID);
+        ulpSqlstmt.hostvalue[12].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[12].isstruct = 1;
+        ulpSqlstmt.hostvalue[12].structsize = sizeof(emg);
+        ulpSqlstmt.hostvalue[12].isarr = 0;
+        ulpSqlstmt.hostvalue[12].mType = 6;
+        ulpSqlstmt.hostvalue[12].mSizeof = 0;
+        ulpSqlstmt.hostvalue[12].mLen = 18;
+        ulpSqlstmt.hostvalue[12].mMaxlen = sizeof(emg.DEVICE_ID);
+        ulpSqlstmt.hostvalue[12].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[12].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[12].mIsDynAlloc = (short)0;
+        ulpSqlstmt.hostvalue[13].mHostVar = (void*)&(emg.ID_TYPE);
+        ulpSqlstmt.hostvalue[13].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[13].isstruct = 1;
+        ulpSqlstmt.hostvalue[13].structsize = sizeof(emg);
+        ulpSqlstmt.hostvalue[13].isarr = 0;
+        ulpSqlstmt.hostvalue[13].mType = 2;
+        ulpSqlstmt.hostvalue[13].mSizeof = sizeof(int);
+        ulpSqlstmt.hostvalue[13].mLen = 0;
+        ulpSqlstmt.hostvalue[13].mMaxlen = 0;
+        ulpSqlstmt.hostvalue[13].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[13].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[13].mIsDynAlloc = (short)0;
+        ulpDoEmsql(NULL, &ulpSqlstmt, NULL);
+    }
+
+    return (sqlca.sqlcode == SQL_SUCCESS);
+}
+
+int delete_sql(Emg_type emg) {
+    /*  DELETE FROM SUBUE_TBL WHERE LTEID=:emg.LTEID AND SLICE_ID=:emg.SLICE_ID AND DEVICE_TYPE=:emg.DEVICE_TYPE AND
+     * ID_TYPE=:emg.ID_TYPE; */
+    {
+        struct ulpSqlstmt ulpSqlstmt;
+        memset(&ulpSqlstmt, 0, sizeof(ulpSqlstmt));
+        ulpHostVar ulpHostVar[4];
+        ulpSqlstmt.hostvalue = ulpHostVar;
+        ulpSqlstmt.stmttype = 3;
+        ulpSqlstmt.stmtname = NULL;
+        ulpSqlstmt.ismt = 0;
+        ulpSqlstmt.numofhostvar = 4;
+        ulpSqlstmt.statusptr = NULL;
+        ulpSqlstmt.errcodeptr = NULL;
+        ulpSqlstmt.isatomic = 0;
+        ulpSqlstmt.stmt =
+            (char*)"DELETE FROM SUBUE_TBL WHERE LTEID=?  AND SLICE_ID=?  AND DEVICE_TYPE=?  AND ID_TYPE=? ";
+        ulpSqlstmt.iters = 0;
+        ulpSqlstmt.sqlinfo = 0;
+        ulpSqlstmt.scrollcur = 0;
+        ulpSqlstmt.cursorscrollable = 0;
+        ulpSqlstmt.cursorsensitivity = 1;
+        ulpSqlstmt.cursorwithhold = 0;
+        ulpSqlstmt.esqlopts = _esqlopts;
+        ulpSqlstmt.sqlcaerr = &sqlca;
+        ulpSqlstmt.sqlcodeerr = &SQLCODE;
+        ulpSqlstmt.sqlstateerr = ulpGetSqlstate();
+        ulpSqlstmt.hostvalue[0].mHostVar = (void*)(emg.LTEID);
+        ulpSqlstmt.hostvalue[0].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[0].isarr = 0;
+        ulpSqlstmt.hostvalue[0].mType = 6;
+        ulpSqlstmt.hostvalue[0].isstruct = 0;
+        ulpSqlstmt.hostvalue[0].mSizeof = 0;
+        ulpSqlstmt.hostvalue[0].mLen = 22;
+        ulpSqlstmt.hostvalue[0].mMaxlen = sizeof(emg.LTEID);
+        ulpSqlstmt.hostvalue[0].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[0].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[0].mIsDynAlloc = (short)0;
+        ulpSqlstmt.hostvalue[1].mHostVar = (void*)(emg.SLICE_ID);
+        ulpSqlstmt.hostvalue[1].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[1].isarr = 0;
+        ulpSqlstmt.hostvalue[1].mType = 6;
+        ulpSqlstmt.hostvalue[1].isstruct = 0;
+        ulpSqlstmt.hostvalue[1].mSizeof = 0;
+        ulpSqlstmt.hostvalue[1].mLen = 6;
+        ulpSqlstmt.hostvalue[1].mMaxlen = sizeof(emg.SLICE_ID);
+        ulpSqlstmt.hostvalue[1].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[1].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[1].mIsDynAlloc = (short)0;
+        ulpSqlstmt.hostvalue[2].mHostVar = (void*)(emg.DEVICE_TYPE);
+        ulpSqlstmt.hostvalue[2].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[2].isarr = 0;
+        ulpSqlstmt.hostvalue[2].mType = 6;
+        ulpSqlstmt.hostvalue[2].isstruct = 0;
+        ulpSqlstmt.hostvalue[2].mSizeof = 0;
+        ulpSqlstmt.hostvalue[2].mLen = 12;
+        ulpSqlstmt.hostvalue[2].mMaxlen = sizeof(emg.DEVICE_TYPE);
+        ulpSqlstmt.hostvalue[2].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[2].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[2].mIsDynAlloc = (short)0;
+        ulpSqlstmt.hostvalue[3].mHostVar = (void*)&(emg.ID_TYPE);
+        ulpSqlstmt.hostvalue[3].mHostInd = NULL;
+        ulpSqlstmt.hostvalue[3].isarr = 0;
+        ulpSqlstmt.hostvalue[3].mType = 2;
+        ulpSqlstmt.hostvalue[3].isstruct = 0;
+        ulpSqlstmt.hostvalue[3].mSizeof = sizeof(int);
+        ulpSqlstmt.hostvalue[3].mLen = 0;
+        ulpSqlstmt.hostvalue[3].mMaxlen = 0;
+        ulpSqlstmt.hostvalue[3].mUnsign = (short)0;
+        ulpSqlstmt.hostvalue[3].mInOut = (short)0;
+        ulpSqlstmt.hostvalue[3].mIsDynAlloc = (short)0;
         ulpDoEmsql(NULL, &ulpSqlstmt, NULL);
     }
 
