@@ -14,11 +14,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <json-c/json.h>
-#include <ulpLibInterface.h>
 
 #include "libari.h"
 #include "medif_api.h"
 #include "rest_api_message.h"
+#include "host_var_emg.h"
 
 #define CLIENT_NUM 1025
 #define MAX_DEVICE_ID_LEN 18
@@ -78,9 +78,5 @@ typedef struct {
     char *buf_ptr;
     char buf[BUFSIZ];
 } t_client;
-
-int insert_sql(Emg_type struct_code);
-int alti_connect(); 
-int alti_disconnect();
 
 #endif // !DEBUG

@@ -2,10 +2,7 @@
 
 static short _esqlopts[10] = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0};
 
-int alti_connect() {
-    char* usr = "EMG";
-    char* pwd = "emg123";
-    char* conn_opt = "Server=172.17.0.2;CONNTYPE=1";
+int alti_connect(char *usr, char *pwd, char *conn_opt) {
 
     {
         struct ulpSqlstmt ulpSqlstmt;

@@ -1,4 +1,8 @@
-EXEC SQL BEGIN DECLARE SECTION;
+#ifndef HOST_VAR_EMG_H
+#define HOST_VAR_EMG_H
+
+#include <ulpLibInterface.h>
+// EXEC SQL BEGIN DECLARE SECTION;
 
 typedef struct {
     char LTEID[22];         // VARCHAR(21) + 1
@@ -17,4 +21,13 @@ typedef struct {
     int  ID_TYPE;           // INTEGER
 } Emg_type;
 
-EXEC SQL END DECLARE SECTION;
+// EXEC SQL END DECLARE SECTION;
+
+int alti_connect(char *usr, char *pwd, char *conn_opt);
+int alti_disconnect();
+
+int insert_sql(Emg_type emg);
+int update_sql(Emg_type emg);
+int delete_sql(Emg_type emg);
+
+#endif
