@@ -20,11 +20,33 @@ typedef struct {
     int ID_TYPE;           // INTEGER
 } Emg_type;
 
+typedef struct {
+    SQLLEN LTEID_ind;
+    SQLLEN SLICE_ID_ind;
+    SQLLEN MDN_ind;
+    SQLLEN IP_POOL_INDEX_ind;  // 정수형 인디케이터
+    SQLLEN IP_ind;
+    SQLLEN AUTH_TYPE_ind;      // 정수형 인디케이터
+    SQLLEN USER_ID_ind;
+    SQLLEN TWOFA_USE_ind;      // 정수형 인디케이터
+    SQLLEN DEVICE_SUSPEND_ind; // 정수형 인디케이터
+    SQLLEN DEVICE_TYPE_ind;
+    SQLLEN MODEL_NAME_ind;
+    SQLLEN SERIAL_NUM_ind;
+    SQLLEN DEVICE_ID_ind;
+    SQLLEN ID_TYPE_ind;        // 정수형 인디케이터
+} Emg_ind_type;
+
 int alti_connect(char *usr, char *pwd, char *conn_opt);
 int alti_disconnect();
 
-int insert_sql(Emg_type emg);
-int update_sql(Emg_type emg);
+bool set_indicator(Emg_ind_type *emg_ind, Emg_type emg);
+bool init_indicator(Emg_ind_type *emg_ind);
+
+int insert_sql(Emg_type emg, Emg_ind_type emg_ind);
+int update_sql(Emg_type emg, Emg_ind_type emg_ind);
 int delete_sql(Emg_type emg);
+
+void print_alti_error();
 
 #endif
