@@ -1,22 +1,30 @@
-EXEC SQL BEGIN DECLARE SECTION;
+#ifndef HOST_VAR_EMG_H
+#define HOST_VAR_EMG_H
+
+#include <ulpLibInterface.h>
 
 typedef struct {
-    char LTEID[21];       // 기업 ID
-    char SLICE_ID[5];     // 슬라이스 ID
-    char DEVICE_ID[18];   // 2차 단말의 DEVICE_ID
-    char MDN[12];         // 1차 단말의 MDN
-    char IP[40];          // 사용 IP
-    char USER_ID[23];     // 사용자 ID
-    char DEVICE_TYPE[11]; // 단말 타입 (PC, CCTV, PRINTER, ETC)
-    char MODEL_NAME[31];  // 모델명
-    char SERIAL_NUM[31];  // 시리얼 번호
-
-    int AUTH_TYPE;        // 인증 타입 (0: EAP 인증, 1: EAP 미인증)
-    int TWO_FA_USE;       // 2-factor 인증 사용 여부
-    int DEVICE_SUSPEND;   // 단말 일시정지 여부
-    int ID_TYPE;          // ID 타입 (1: MAC, 2: CPU serial, 3: 추후 정의)
-    int IP_POOL_INDEX;    // IP Pool Index
+    char LTEID[22];        // VARCHAR(21) + 1
+    char SLICE_ID[6];      // VARCHAR(5) + 1
+    char MDN[13];          // VARCHAR(12) + 1
+    int IP_POOL_INDEX;     // INTEGER
+    char IP[41];           // VARCHAR(40) + 1
+    int AUTH_TYPE;         // INTEGER
+    char USER_ID[24];      // VARCHAR(23) + 1
+    int TWOFA_USE;         // INTEGER
+    int DEVICE_SUSPEND;    // INTEGER
+    char DEVICE_TYPE[12];  // VARCHAR(11) + 1
+    char MODEL_NAME[32];   // VARCHAR(31) + 1
+    char SERIAL_NUM[32];   // VARCHAR(31) + 1
+    char DEVICE_ID[18];    // VARCHAR(17) + 1
+    int ID_TYPE;           // INTEGER
 } Emg_type;
 
-EXEC SQL END DECLARE SECTION;
+int alti_connect(char *usr, char *pwd, char *conn_opt);
+int alti_disconnect();
 
+int insert_sql(Emg_type emg);
+int update_sql(Emg_type emg);
+int delete_sql(Emg_type emg);
+
+#endif

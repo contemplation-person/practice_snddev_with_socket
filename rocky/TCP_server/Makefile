@@ -7,9 +7,9 @@ build:
 	docker build -t tcp_server .
 
 run:
-	docker run -it -p 4242:4242 -v "./server:/tcp_server" tcp_server 
+	docker run --name tcp_svr -it -p 4242:4242 -v "./server:/tcp_server" tcp_server 
 start:
-	docker start  61fa82 && docker exec -it  61fa82 /bin/zsh
+	docker start tcp_svr && docker exec -it tcp_svr /bin/zsh
 
 fclean:
 	docker rmi altibase_db
