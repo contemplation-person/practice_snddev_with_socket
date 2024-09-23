@@ -391,13 +391,51 @@ int main(int argc, char **argv) {
     Snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
     t_buf_state buf_state;
 
+    Emg_ind_type emg_ind;
+    Emg_type emg;
+
     check_argc(argc);
 
     sockfd = init_socket(argv[1], &servaddr);
 
-    //fprintf(stderr, "alti connect %d\n", alti_connect());
-    alti_connect();
-    alti_disconnect();
+    if (alti_connect("EMG", "emg123", "Server=172.17.0.3;CONNTYPE=1") == false) {
+        print_alti_error();
+        exit(1);
+    }
+
+    // altibase test
+    {
+        init_indicator(&emg_ind);
+
+        strcpy(emg.LTEID, "1");
+        strcpy(emg.SLICE_ID, "1");
+        strcpy(emg.MDN, "1");
+        emg.IP_POOL_INDEX = 1;
+        strcpy(emg.IP, "1");
+        emg.AUTH_TYPE = 1;
+        strcpy(emg.USER_ID, "1");
+        emg.TWOFA_USE = 1;
+        strcpy(emg.DEVICE_ID, "1");
+        emg.ID_TYPE = 1;
+
+        set_indicator(&emg_ind, emg);
+        if (insert_sql(emg, emg_ind) == false) {
+            print_alti_error();
+        }
+
+        emg.ID_TYPE = 11;
+
+        set_indicator(&emg_ind, emg);
+        if (update_sql(emg, emg_ind) == false) {
+            print_alti_error();
+        }
+        if (delete_sql(emg) == false) {
+            print_alti_error();
+        }
+
+        alti_disconnect();
+        exit(0);
+    }
 
     fd_set w_fd_set;
     fd_set r_fd_set;
