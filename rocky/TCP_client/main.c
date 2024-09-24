@@ -11,16 +11,28 @@ int is_valid_json(const char *json_string) {
     return 1;
 }
 
-int make_rest_header(char *msg, int json_len) {
+// msg type을 저장
+int make_rest_header(int mType, char *msg, int json_len) {
     char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
     RestLibHeadType *rest_header = (RestLibHeadType *)(msg + sizeof(SocketHeader));
     static int tid = 0;
+
+    switch (mType) {
+        case CREATE_SND_DEV_POLICY_ENUM:
+            sprintf(rest_header->mtype, "%s", rest_str_arr[CREATE_SNDDEV_POLICY]);
+            break;
+        case MODIFY_SND_DEV_POLICY_EMUM:
+            sprintf(rest_header->mtype, "%s", rest_str_arr[MODIFY_SNDDEV_POLICY]);
+            break;
+        case DELETE_SND_DEV_POLICY_ENUM:
+            sprintf(rest_header->mtype, "%s", rest_str_arr[DELETE_SNDDEV_POLICY]);
+            break;
+    }
 
     sprintf(rest_header->method, "%s", "POST");
     sprintf(rest_header->tid, "%d", tid++);
     sprintf(rest_header->param2Id, "%s", "127.0.0.1");
     sprintf(rest_header->param1Id, "%s", "EMG@an#2345&12980!");
-    sprintf(rest_header->mtype, "%s", rest_str_arr[CREATE_SNDDEV_POLICY]);
     sprintf(rest_header->uri, "%s/%s", "127.0.0.1:3000", "api/emg/policy/SndDev/create");
     sprintf(rest_header->bodyLen, "%d", json_len);
 
@@ -124,7 +136,7 @@ int make_msg(char* msg, int msgid, Snd_dev_policy* shared_msg) {
 
     json_len = make_json_body(msg, (Snd_dev_policy *)shared_msg, msg_q.msg_type);
 
-    return (json_len + make_rest_header(msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
+    return (json_len + make_rest_header(msg_q.msg_type, msg, json_len) + make_socket_header(msg, json_len + sizeof(RestLibHeadType)));
 }
 
 int send_socket(int sockfd, char *msg, int msgid, Snd_dev_policy *shared_msg, int (*make_msg)(char *, int, Snd_dev_policy*)) {
@@ -215,6 +227,11 @@ int main(int argc, char **argv) {
     rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
     msg_q_key = ftok("/tmp/emg", 42);
+    if (msg_q_key == -1) {
+        perror("ftok");
+        return false;
+    }
+
     msgid = msgget(msg_q_key, 0666 | IPC_CREAT);
 
     shared_key = ftok("/tmp/emg", 24);

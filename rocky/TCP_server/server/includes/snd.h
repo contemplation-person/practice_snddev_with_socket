@@ -30,9 +30,11 @@
 #define MAX_SERIAL_NUMBER_LEN 31
 
 typedef enum {
-    RESPONSE_SUCCESS = 1,
+    RESPONSE_UNKNOWN,
+    RESPONSE_SUCCESS,
     RESPONSE_ERROR_AKEY,
     RESPONSE_ERROR_JSON,
+    RESPONSE_ERROR_SQL,
 } Res_code_type;
 
 typedef enum { 
@@ -43,7 +45,16 @@ typedef enum {
 	SND_FATAL_ERROR 
 } t_buf_state;
 
-typedef struct s_create_snddev_policy_list {
+typedef enum
+{
+    CREATE_SND_DEV_POLICY_ENUM = 1,
+    MODIFY_SND_DEV_POLICY_EMUM,
+    DELETE_SND_DEV_POLICY_ENUM,
+    EMG_MSG_EMUM_MAX
+} Emg_msg_type;
+
+
+typedef struct Snddev_policy{
     int auth_type;
     int two_fa_use;
     int device_suspend;
@@ -58,7 +69,7 @@ typedef struct s_create_snddev_policy_list {
 
     char device_name[MAX_DEVICE_NAME_LEN];
     char serial_number[MAX_SERIAL_NUMBER_LEN];
-    struct s_create_snddev_policy_list *next;
+    struct Snddev_policy *next;
 } Snddev_policy_list;
 
 typedef struct {
@@ -79,4 +90,4 @@ typedef struct {
     char buf[BUFSIZ];
 } t_client;
 
-#endif // !DEBUG
+#endif 

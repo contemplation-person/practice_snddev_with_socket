@@ -113,7 +113,6 @@ int init_socket(char *port, struct sockaddr_in *servaddr) {
 
 int new_create_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj) {
     Snddev_policy_list *new_list = (Snddev_policy_list *)malloc(sizeof(Snddev_policy_list));
-
     if (!new_list) {
         fprintf(stderr, "malloc error: %s\n", strerror(errno));
         return 0;
@@ -123,13 +122,11 @@ int new_create_snddev_policy_list(Snddev_policy_header *snddev_policy_header, st
     new_list->two_fa_use = json_object_get_int(json_object_object_get(csp_list_obj, "TWO_FA_USE"));
     new_list->device_suspend = json_object_get_int(json_object_object_get(csp_list_obj, "ID_TYPE"));
     new_list->ip_pool_index = json_object_get_int(json_object_object_get(csp_list_obj, "IP_POOL_INDEX"));
-
     strcpy(new_list->device_id, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_ID")));
     strcpy(new_list->mdn, json_object_get_string(json_object_object_get(csp_list_obj, "MDN")));
     strcpy(new_list->ip, json_object_get_string(json_object_object_get(csp_list_obj, "IP")));
     strcpy(new_list->user_id, json_object_get_string(json_object_object_get(csp_list_obj, "USER_ID")));
     strcpy(new_list->device_type, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_TYPE")));
-
     strcpy(new_list->device_name, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_NAME")));
     strcpy(new_list->serial_number, json_object_get_string(json_object_object_get(csp_list_obj, "SERIAL_NUMBER")));
     new_list->next = NULL;
@@ -145,7 +142,61 @@ int new_create_snddev_policy_list(Snddev_policy_header *snddev_policy_header, st
     return 1;
 }
 
-int parse_json_list(struct json_object *parsed_json, Snddev_policy_header *snddev_policy_header) {
+int new_modify_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj) {
+    Snddev_policy_list *new_list = (Snddev_policy_list *)malloc(sizeof(Snddev_policy_list));
+    if (!new_list) {
+        fprintf(stderr, "malloc error: %s\n", strerror(errno));
+        return 0;
+    }
+
+    new_list->auth_type = json_object_get_int(json_object_object_get(csp_list_obj, "AUTH_TYPE"));
+    new_list->two_fa_use = json_object_get_int(json_object_object_get(csp_list_obj, "TWO_FA_USE"));
+    new_list->device_suspend = json_object_get_int(json_object_object_get(csp_list_obj, "ID_TYPE"));
+    new_list->ip_pool_index = json_object_get_int(json_object_object_get(csp_list_obj, "IP_POOL_INDEX"));
+    strcpy(new_list->device_id, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_ID")));
+    strcpy(new_list->mdn, json_object_get_string(json_object_object_get(csp_list_obj, "MDN")));
+    strcpy(new_list->ip, json_object_get_string(json_object_object_get(csp_list_obj, "IP")));
+    strcpy(new_list->user_id, json_object_get_string(json_object_object_get(csp_list_obj, "USER_ID")));
+    strcpy(new_list->device_type, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_TYPE")));
+    strcpy(new_list->device_name, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_NAME")));
+    strcpy(new_list->serial_number, json_object_get_string(json_object_object_get(csp_list_obj, "SERIAL_NUMBER")));
+    new_list->next = NULL;
+
+    if (snddev_policy_header->create_snddev_policy_start_list == NULL) {
+        snddev_policy_header->create_snddev_policy_start_list = new_list;
+        snddev_policy_header->create_snddev_policy_end_list = new_list;
+    } else {
+        snddev_policy_header->create_snddev_policy_end_list->next = new_list;
+        snddev_policy_header->create_snddev_policy_end_list = new_list;
+    }
+
+    return 1;
+}
+
+int new_delete_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj) {
+    Snddev_policy_list *new_list = (Snddev_policy_list *)malloc(sizeof(Snddev_policy_list));
+    if (!new_list) {
+        fprintf(stderr, "malloc error: %s\n", strerror(errno));
+        return 0;
+    }
+
+    strcpy(new_list->device_id, json_object_get_string(json_object_object_get(csp_list_obj, "DEVICE_ID")));
+    new_list->device_suspend = json_object_get_int(json_object_object_get(csp_list_obj, "ID_TYPE"));
+
+    new_list->next = NULL;
+
+    if (snddev_policy_header->create_snddev_policy_start_list == NULL) {
+        snddev_policy_header->create_snddev_policy_start_list = new_list;
+        snddev_policy_header->create_snddev_policy_end_list = new_list;
+    } else {
+        snddev_policy_header->create_snddev_policy_end_list->next = new_list;
+        snddev_policy_header->create_snddev_policy_end_list = new_list;
+    }
+
+    return 1;
+}
+
+int parse_json_list(int mType, struct json_object *parsed_json, Snddev_policy_header *snddev_policy_header) {
     struct json_object *csp_list;
     struct json_object *csp_list_obj;
     int list_len;
@@ -158,9 +209,26 @@ int parse_json_list(struct json_object *parsed_json, Snddev_policy_header *sndde
     list_len = json_object_array_length(csp_list);
     for (int idx = 0; idx < list_len; idx++) {
         csp_list_obj = json_object_array_get_idx(csp_list, idx);
-        if (!new_create_snddev_policy_list(snddev_policy_header, csp_list_obj)) {
-            fprintf(stderr, "new_create_snddev_policy_list error: %s\n", strerror(errno));
-            return 0;
+        switch (mType)
+        {
+            case CREATE_SNDDEV_POLICY:
+                if (!new_create_snddev_policy_list(snddev_policy_header, csp_list_obj)) {
+                    fprintf(stderr, "new_create_snddev_policy_list error: %s\n", strerror(errno));
+                    return 0;
+                }
+                break;
+            case MODIFY_SNDDEV_POLICY:
+                if (!new_modify_snddev_policy_list(snddev_policy_header, csp_list_obj)) {
+                    fprintf(stderr, "new_modify_snddev_policy_list error: %s\n", strerror(errno));
+                    return 0;
+                }
+                break;
+            case DELETE_SNDDEV_POLICY:
+                if (!new_delete_snddev_policy_list(snddev_policy_header, csp_list_obj)) {
+                    fprintf(stderr, "new_delete_snddev_policy_list error: %s\n", strerror(errno));
+                    return 0;
+                }
+                break;
         }
     }
 
@@ -188,17 +256,26 @@ void parse_json_header(struct json_object *parsed_json, Snddev_policy_header *sn
 
 int parse_rest_msg(RestMsgType *rest_msg, Snddev_policy_header *snddev_policy) {
     struct json_object *parsed_json;
+    char* rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
+    int mType = REST_API_UNKNOWN;
+
+    while (mType < REST_API_MAX) {
+        if (!strcmp(rest_msg->header.mtype, rest_str_arr[mType])) {
+            break;
+        }
+        mType++;
+    }
 
     parsed_json = json_tokener_parse(rest_msg->jsonBody);
     if (parsed_json == NULL) {
         return 0;
     }
-
+    
     parse_json_header(parsed_json, snddev_policy);
-    if (!parse_json_list(parsed_json, snddev_policy)) {
-        json_object_put(parsed_json);
-        return 0;
-    }
+        if (!parse_json_list(mType, parsed_json, snddev_policy)) {
+            json_object_put(parsed_json);
+            return 0;
+        }
 
     ari_title_print("parsed_json", COLOR_GREEN_CODE);
     ari_json_object_print(parsed_json);
@@ -288,6 +365,14 @@ int make_server_response(SocketHeader *socketHeader, RestMsgType *restMsgType, R
         case RESPONSE_ERROR_JSON:
             memmove(restMsgType->header.resCode, "400", 4);
             break;
+        
+        case RESPONSE_ERROR_SQL:
+            memmove(restMsgType->header.resCode, "400", 4);
+            break;
+        
+        case RESPONSE_UNKNOWN:
+            memmove(restMsgType->header.resCode, "404", 4);
+            break;
     }
 
     return res_code;
@@ -306,6 +391,55 @@ void init_client(t_client *client) {
     }
 }
 
+int exec_query(RestLibHeadType* rest_msg,  Snddev_policy_header snddev_policy) {
+    char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
+    Emg_ind_type emg_ind = {0};
+    Emg_type emg = {0};
+
+    strcpy(emg.LTEID, snddev_policy.lte);
+    strcpy(emg.SLICE_ID, snddev_policy.slice_id);
+    strcpy(emg.MDN, snddev_policy.create_snddev_policy_start_list->mdn);
+
+    emg.IP_POOL_INDEX = snddev_policy.create_snddev_policy_start_list->ip_pool_index;
+    strcpy(emg.IP, snddev_policy.create_snddev_policy_start_list->ip);
+    emg.AUTH_TYPE = snddev_policy.create_snddev_policy_start_list->auth_type;
+    strcpy(emg.USER_ID, snddev_policy.create_snddev_policy_start_list->user_id);
+    emg.TWOFA_USE = snddev_policy.create_snddev_policy_start_list->two_fa_use;
+    emg.DEVICE_SUSPEND = snddev_policy.create_snddev_policy_start_list->device_suspend;
+
+    strcpy(emg.DEVICE_TYPE, snddev_policy.create_snddev_policy_start_list->device_type);
+    strcpy(emg.MODEL_NAME, snddev_policy.create_snddev_policy_start_list->device_name);
+    strcpy(emg.SERIAL_NUM, snddev_policy.create_snddev_policy_start_list->serial_number);
+    strcpy(emg.DEVICE_ID, snddev_policy.create_snddev_policy_start_list->device_id); 
+    emg.ID_TYPE = snddev_policy.create_snddev_policy_start_list->id_type;
+
+    set_indicator(&emg_ind, emg);
+
+    for (int idx = REST_API_UNKNOWN; idx < REST_API_MAX; idx++) {
+        if (!strcmp(rest_msg->mtype, rest_str_arr[idx])) {
+            switch (idx)
+            {
+            case CREATE_SNDDEV_POLICY:
+                if (insert_sql(emg, emg_ind) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            case MODIFY_SNDDEV_POLICY:
+                if (update_sql(emg, emg_ind) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            case DELETE_SNDDEV_POLICY:
+                if (delete_sql(emg) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            }
+
+            return idx;
+        }
+    }
+
+    return REST_API_UNKNOWN;
+}
+
 void validate_rules(t_client *client, int target_fd, Snddev_policy_header *snddev_policy_header) {
     if (!same_as_akey((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader)))) {
         make_server_response((SocketHeader *)(client[target_fd].buf),
@@ -317,13 +451,22 @@ void validate_rules(t_client *client, int target_fd, Snddev_policy_header *sndde
                              (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_JSON);
         ari_title_print_fd(STDERR_FILENO, "json parse error", COLOR_RED_CODE);
     } else {
-        // altibase create
-        // altibase update
-        // altibase delete
-        create_snd_file(snddev_policy_header[target_fd]);
-        make_server_response((SocketHeader *)(client[target_fd].buf),
-                             (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_SUCCESS);
+        
+        if (exec_query((RestLibHeadType *)(client[target_fd].buf + sizeof(SocketHeader)), snddev_policy_header[target_fd])) {
+            make_server_response((SocketHeader *)(client[target_fd].buf),
+                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_SUCCESS);
+        } else if (sqlca.sqlcode) {
+            make_server_response((SocketHeader *)(client[target_fd].buf),
+                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_ERROR_SQL);
+        }
+        else {
+            make_server_response((SocketHeader *)(client[target_fd].buf),
+                                 (RestMsgType *)(client[target_fd].buf + sizeof(SocketHeader)), RESPONSE_UNKNOWN);
+        }
+
+        // create_snd_file(snddev_policy_header[target_fd]);
     }
+
     ari_title_print_fd(STDOUT_FILENO, "send msg", COLOR_YELLOW_CODE);
 
 }
@@ -391,9 +534,6 @@ int main(int argc, char **argv) {
     Snddev_policy_header snddev_policy_header[CLIENT_NUM] = {0};
     t_buf_state buf_state;
 
-    Emg_ind_type emg_ind;
-    Emg_type emg;
-
     check_argc(argc);
 
     sockfd = init_socket(argv[1], &servaddr);
@@ -401,40 +541,6 @@ int main(int argc, char **argv) {
     if (alti_connect("EMG", "emg123", "Server=172.17.0.3;CONNTYPE=1") == false) {
         print_alti_error();
         exit(1);
-    }
-
-    // altibase test
-    {
-        init_indicator(&emg_ind);
-
-        strcpy(emg.LTEID, "1");
-        strcpy(emg.SLICE_ID, "1");
-        strcpy(emg.MDN, "1");
-        emg.IP_POOL_INDEX = 1;
-        strcpy(emg.IP, "1");
-        emg.AUTH_TYPE = 1;
-        strcpy(emg.USER_ID, "1");
-        emg.TWOFA_USE = 1;
-        strcpy(emg.DEVICE_ID, "1");
-        emg.ID_TYPE = 1;
-
-        set_indicator(&emg_ind, emg);
-        if (insert_sql(emg, emg_ind) == false) {
-            print_alti_error();
-        }
-
-        emg.ID_TYPE = 11;
-
-        set_indicator(&emg_ind, emg);
-        if (update_sql(emg, emg_ind) == false) {
-            print_alti_error();
-        }
-        if (delete_sql(emg) == false) {
-            print_alti_error();
-        }
-
-        alti_disconnect();
-        exit(0);
     }
 
     fd_set w_fd_set;
@@ -467,7 +573,8 @@ int main(int argc, char **argv) {
                         FD_CLR(target_fd, &r_fd_set);
                     }
                     if (buf_state == TRY_WRITE) {
-						validate_rules(client, target_fd, snddev_policy_header);
+                        printf("location");
+                        validate_rules(client, target_fd, snddev_policy_header);
                         FD_SET(target_fd, &w_fd_set);
                     } else {
                         continue;
@@ -491,4 +598,6 @@ int main(int argc, char **argv) {
             }
         }
     }
+
+    alti_disconnect();
 }
