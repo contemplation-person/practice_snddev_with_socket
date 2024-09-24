@@ -50,7 +50,6 @@ char* make_create_snd_dev_policy(char *sdp_msg) {
     }
     strcpy(sdp->lte_id, token);
 
-    // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
     sdp->max_list_idx = 1;
 
     for (int item = SLICE_ID; item < SND_DEV_POLICY_MAX; item++) {
@@ -175,7 +174,6 @@ char* make_modify_snd_dev_policy(char *sdp_msg) {
 
     strcpy(sdp->lte_id, token);
 
-    // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
     sdp->max_list_idx = 1;
 
     for (int item = SLICE_ID; item < SND_DEV_POLICY_MAX; item++) {
@@ -301,7 +299,6 @@ char* make_delete_snd_dev_policy(char *sdp_msg) {
 
     strcpy(sdp->lte_id, token);
 
-    // TODO : 현재는 1개 리스트, 추후 가변적으로 리스트를 생성할 것.
     sdp->max_list_idx = 1;
     item = SLICE_ID;
     while (item) {
@@ -439,6 +436,10 @@ int main() {
 
     msg_key = ftok("/tmp/emg", 42);
     msgid = msgget(msg_key, 0666 | IPC_CREAT);
+    if (msg_key == -1) {
+        perror("ftok");
+        return false;
+    }
 
     shared_key = ftok("/tmp/emg", 24);
     if (shared_key == -1) {

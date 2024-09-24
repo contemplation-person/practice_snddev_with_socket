@@ -10,7 +10,7 @@
 #define MAX_SERIAL_NUMBER 31
 #define MAX_LTE_ID 20
 #define MAX_SLICE_ID 4
-#define MAX_CREATE_SND_DEV_POLICY_LIST 10 // TODO: 추후 100개로 조정
+#define MAX_CREATE_SND_DEV_POLICY_LIST 10 
 
 typedef struct
 {
