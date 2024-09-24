@@ -147,8 +147,6 @@ int send_socket(int sockfd, char *msg, int msgid, Snd_dev_policy *shared_msg, in
         return false;
     }
 
-    // TODO : 인자가 -1일 때 처리, errno 에 따라 버퍼를 따로 만들어서 처리할지 소켓을 닫을지 결정
-    // TODO : send가 partial write 일 때 처리
     send_len = send(sockfd, msg, total_len, 0);
     if (send_len == -1) {
         perror("send");
@@ -209,10 +207,7 @@ int main(int argc, char **argv) {
     int shared_id;
     key_t shared_key;
     Snd_dev_policy *shared_msg;
-
-    SocketHeader *socket_header;
     RestMsgType *rest_msg;
-    clock_t start;
 
     vaild_argc(argc);
 
@@ -223,7 +218,6 @@ int main(int argc, char **argv) {
 
     ari_title_print_fd(STDIN_FILENO, "connect server", COLOR_GREEN_CODE);
 
-    socket_header = (SocketHeader *)msg;
     rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
     msg_q_key = ftok("/tmp/emg", 42);
@@ -252,25 +246,19 @@ int main(int argc, char **argv) {
         return false;
     }
 
-    // TODO : select를 사용해서 멀티 플렉싱 되도록 수정???
-
     while (42) {
-        start = clock();
-
         send_socket(sock, msg, msgid, shared_msg, make_msg);
 
-        // TODO : recv가 partial read 일 때 처리
         recv_len = recv(sock, msg, BUFSIZ, 0);
         if (recv_len > 0) {
-            printf("recv_len : %d\n", recv_len);
-            printf("recv time : %ld\n", clock() - start);
-            ari_title_print("recv data", COLOR_GREEN_CODE);
-            printf("socket mtype->%d\n", ntohl(socket_header->mType));
-            printf("socket header->%d\n", ntohl(socket_header->bodyLen));
-            printf("rest code %s\n", rest_msg->header.resCode);
-            printf("rest header->%s\n", msg + sizeof(SocketHeader));
+            ari_title_print("---------recv data------------", COLOR_GREEN_CODE);
+            ari_title_print("Rest code", COLOR_YELLOW_CODE);
+            printf("%s\n", rest_msg->header.resCode);
+            ari_title_print("Rest header", COLOR_YELLOW_CODE);
+            printf("%s\n", msg + sizeof(SocketHeader));
             ari_title_print("recv json body", COLOR_MAGENTA_CODE);
             ari_json_object_print(json_tokener_parse(msg + sizeof(SocketHeader) + sizeof(RestLibHeadType)));
+            ari_title_print("------------------------------", COLOR_GREEN_CODE);
         }
     }
 
