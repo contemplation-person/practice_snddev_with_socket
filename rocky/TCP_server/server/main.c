@@ -467,8 +467,6 @@ void validate_rules(t_client *client, int target_fd, Snddev_policy_header *sndde
         // create_snd_file(snddev_policy_header[target_fd]);
     }
 
-    ari_title_print_fd(STDOUT_FILENO, "send msg", COLOR_YELLOW_CODE);
-
 }
 /**
  * @param sph : Snddev_policy_header
@@ -480,7 +478,7 @@ int validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli,
 
     strcpy(sph[*connfd].real_ip, inet_ntoa(cli->sin_addr));
     ari_title_print_fd(STDOUT_FILENO, "connect ip", COLOR_GREEN_CODE);
-    ari_title_print_fd(STDOUT_FILENO, sph[*connfd].real_ip, COLOR_GREEN_CODE);
+    ari_title_print_fd(STDOUT_FILENO, sph[*connfd].real_ip, COLOR_YELLOW_CODE);
 
     if (strncmp(sph[*connfd].real_ip, allowed_ip, strlen(allowed_ip)) || *connfd < 0) {
         ari_title_print_fd(STDERR_FILENO, "Not allowed ip", COLOR_RED_CODE);
@@ -565,7 +563,6 @@ int main(int argc, char **argv) {
                 select_cnt--;
 
                 if (target_fd != sockfd) {
-                    ari_title_print_fd(STDOUT_FILENO, "recv msg", COLOR_YELLOW_CODE);
                     buf_state = recv_msg(client, target_fd);
                     if (buf_state == LEAVE_CLIENT) {
                         close(target_fd);
