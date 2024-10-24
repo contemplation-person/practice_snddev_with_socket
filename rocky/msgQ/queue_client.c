@@ -446,11 +446,12 @@ int main() {
     }
 
     msg_key = ftok("/tmp/emg", 42);
-    msgid = msgget(msg_key, 0666 | IPC_CREAT);
     if (msg_key == -1) {
         perror("ftok");
         return false;
     }
+
+    msgid = msgget(msg_key, 0666 | IPC_CREAT);
 
     shared_key = ftok("/tmp/emg", 24);
     if (shared_key == -1) {

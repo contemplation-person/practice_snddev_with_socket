@@ -220,6 +220,15 @@ int main(int argc, char **argv) {
 
     rest_msg = (RestMsgType *)(msg + sizeof(SocketHeader));
 
+    if (access(filepath, F_OK) == -1) {
+        FILE *file = fopen(filepath, "w");
+        if (file == NULL) {
+            perror("Failed to create file");
+            return EXIT_FAILURE;
+        }
+        fclose(file);
+    }
+
     msg_q_key = ftok("/tmp/emg", 42);
     if (msg_q_key == -1) {
         perror("ftok");
