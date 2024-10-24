@@ -434,6 +434,17 @@ int main() {
 
     char msg[512] = {0};
 
+    const char *filepath = "/tmp/emg";
+
+    if (access(filepath, F_OK) == -1) {
+        FILE *file = fopen(filepath, "w");
+        if (file == NULL) {
+            perror("Failed to create file");
+            return EXIT_FAILURE; 
+        }
+        fclose(file);
+    }
+
     msg_key = ftok("/tmp/emg", 42);
     msgid = msgget(msg_key, 0666 | IPC_CREAT);
     if (msg_key == -1) {
