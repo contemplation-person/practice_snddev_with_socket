@@ -815,3 +815,52 @@ int delete_sql(Emg_type emg) {
 
     return (sqlca.sqlcode == SQL_SUCCESS);
 }
+
+int exec_query(RestLibHeadType* rest_msg,  Snddev_policy_header snddev_policy) {
+    char *rest_str_arr[] = {FOREACH_REST_API(GENERATE_REST_API_STRING)};
+    Emg_ind_type emg_ind = {0};
+    Emg_type emg = {0};
+
+    strcpy(emg.LTEID, snddev_policy.lte);
+    strcpy(emg.SLICE_ID, snddev_policy.slice_id);
+    strcpy(emg.MDN, snddev_policy.create_snddev_policy_start_list->mdn);
+
+    emg.IP_POOL_INDEX = snddev_policy.create_snddev_policy_start_list->ip_pool_index;
+    strcpy(emg.IP, snddev_policy.create_snddev_policy_start_list->ip);
+    emg.AUTH_TYPE = snddev_policy.create_snddev_policy_start_list->auth_type;
+    strcpy(emg.USER_ID, snddev_policy.create_snddev_policy_start_list->user_id);
+    emg.TWOFA_USE = snddev_policy.create_snddev_policy_start_list->two_fa_use;
+    emg.DEVICE_SUSPEND = snddev_policy.create_snddev_policy_start_list->device_suspend;
+
+    strcpy(emg.DEVICE_TYPE, snddev_policy.create_snddev_policy_start_list->device_type);
+    strcpy(emg.MODEL_NAME, snddev_policy.create_snddev_policy_start_list->device_name);
+    strcpy(emg.SERIAL_NUM, snddev_policy.create_snddev_policy_start_list->serial_number);
+    strcpy(emg.DEVICE_ID, snddev_policy.create_snddev_policy_start_list->device_id); 
+    emg.ID_TYPE = snddev_policy.create_snddev_policy_start_list->id_type;
+
+    set_indicator(&emg_ind, emg);
+
+    for (int idx = REST_API_UNKNOWN; idx < REST_API_MAX; idx++) {
+        if (!strcmp(rest_msg->mtype, rest_str_arr[idx])) {
+            switch (idx)
+            {
+            case CREATE_SNDDEV_POLICY:
+                if (insert_sql(emg, emg_ind) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            case MODIFY_SNDDEV_POLICY:
+                if (update_sql(emg, emg_ind) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            case DELETE_SNDDEV_POLICY:
+                if (delete_sql(emg) == false)
+                    return REST_API_UNKNOWN;
+                break;
+            }
+
+            return idx;
+        }
+    }
+
+    return REST_API_UNKNOWN;
+}

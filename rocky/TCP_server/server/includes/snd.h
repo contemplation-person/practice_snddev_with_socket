@@ -90,4 +90,39 @@ typedef struct {
     char buf[BUFSIZ];
 } t_client;
 
+int     init_socket(char *port, struct sockaddr_in *servaddr);
+int     set_non_blocking(int sockfd);
+int     validate_client_connection(int sockfd, int *connfd, struct sockaddr_in *cli, char *allowed_ip, int *len, Snddev_policy_header *sph);
+
+int     alti_connect(char *usr, char *pwd, char *conn_opt);
+int     alti_disconnect();
+bool    init_indicator(Emg_ind_type *emg_ind);
+bool    set_indicator(Emg_ind_type *emg_ind, Emg_type emg);
+void    print_alti_error();
+
+int     insert_sql(Emg_type emg, Emg_ind_type emg_ind);
+int     update_sql(Emg_type emg, Emg_ind_type emg_ind);
+int     delete_sql(Emg_type emg);
+int     exec_query(RestLibHeadType* rest_msg,  Snddev_policy_header snddev_policy);
+
+int new_create_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj);
+int new_modify_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj);
+int new_delete_snddev_policy_list(Snddev_policy_header *snddev_policy_header, struct json_object *csp_list_obj);
+int parse_json_list(int mType, struct json_object *parsed_json, Snddev_policy_header *snddev_policy_header);
+void ari_json_object_print(json_object *json);
+void parse_json_header(struct json_object *parsed_json, Snddev_policy_header *snddev_policy);
+int parse_rest_msg(RestMsgType *rest_msg, Snddev_policy_header *snddev_policy);
+
+void init_client_one(t_client *client);
+void init_client(t_client *client);
+t_buf_state recv_msg(t_client *client, int target_fd);
+
+int same_as_akey(RestLibHeadType *rest_msg);
+void check_argc(int argc);
+void validate_rules(t_client *client, int target_fd, Snddev_policy_header *snddev_policy_header);
+
+int create_snd_file(Snddev_policy_header snddev_policy);
+void clear_csp_list(Snddev_policy_header *snddev_policy_header);
+int make_server_response_code(SocketHeader *socketHeader, RestMsgType *restMsgType, Res_code_type res_code);
+int send_msg(t_client *client, int target_fd, fd_set *r_fd_set, fd_set *w_fd_set);
 #endif 

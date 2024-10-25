@@ -16,7 +16,12 @@ CFLAGS 				:= -Wall -Wextra -Werror
 NAME 				:= snd_server
 
 SRCS 				:= main.c \
-					   db.c
+					   db.c\
+					   json_utils.c\
+					   socket_utils.c\
+					   utils.c\
+					   
+
 OBJS 				:= $(SRCS:%.c=%.o)
 
 RM 					:= rm -rf
