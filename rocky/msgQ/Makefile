@@ -23,7 +23,7 @@ OBJS 				:= $(SRCS:%.c=%.o)
 
 RM 					:= rm -rf
 
-INCLUDE 			:= -Ilibari -Iincludes -ImsgQ
+INCLUDE 			:= -Ilibari -Iincludes 
 LIB_DIR 			:= -lari 
 LIB_PATH 			:= -Llibari
 
