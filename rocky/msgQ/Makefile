@@ -15,12 +15,15 @@ CFLAGS 				:= -Wall -Wextra -Werror
 
 NAME 				:= queue_client
 
-SRCS 				:= queue_client.c 
+SRCS 				:= queue_client.c \
+					   snd_dev_policy.c\
+					   utils.c\
+
 OBJS 				:= $(SRCS:%.c=%.o)
 
 RM 					:= rm -rf
 
-INCLUDE 			:= -Ilibari -Iincludes 
+INCLUDE 			:= -Ilibari -Iincludes -ImsgQ
 LIB_DIR 			:= -lari 
 LIB_PATH 			:= -Llibari
 
